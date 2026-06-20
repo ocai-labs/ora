@@ -1,0 +1,726 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		7DD832A02F8737BA005FAD73 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 7DD8329F2F8737BA005FAD73 /* FluidAudio */; };
+		7DD832B02F900001005FAD73 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 7DD832AF2F900001005FAD73 /* Sparkle */; };
+		7DD832B22F900004005FAD73 /* BuildInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DD832B12F900003005FAD73 /* BuildInfo.swift */; };
+		7DD8348B2F8C6A69005FAD73 /* MLXAudioCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7DD8348A2F8C6A69005FAD73 /* MLXAudioCore */; };
+		7DD8348D2F8C6A69005FAD73 /* MLXAudioSTT in Frameworks */ = {isa = PBXBuildFile; productRef = 7DD8348C2F8C6A69005FAD73 /* MLXAudioSTT */; };
+		7DD835032F8CD1CC005FAD73 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7DD835022F8CD1CC005FAD73 /* WhisperKit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		7DD8322E2F866FA1005FAD73 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7DD832182F866F9F005FAD73 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7DD8321F2F866F9F005FAD73;
+			remoteInfo = ora;
+		};
+		7DD832382F866FA1005FAD73 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7DD832182F866F9F005FAD73 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7DD8321F2F866F9F005FAD73;
+			remoteInfo = ora;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		7DD832202F866F9F005FAD73 /* ora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ora.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7DD8322D2F866FA1005FAD73 /* oraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = oraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7DD832372F866FA1005FAD73 /* oraUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = oraUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7DD832B12F900003005FAD73 /* BuildInfo.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; includeInIndex = 0; path = BuildInfo.swift; sourceTree = DERIVED_FILE_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		7DD832C02F900001005FAD73 /* Exceptions for "ora" folder in "ora" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 7DD8321F2F866F9F005FAD73 /* ora */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		7DD832222F866F9F005FAD73 /* ora */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				7DD832C02F900001005FAD73 /* Exceptions for "ora" folder in "ora" target */,
+			);
+			path = ora;
+			sourceTree = "<group>";
+		};
+		7DD832302F866FA1005FAD73 /* oraTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = oraTests;
+			sourceTree = "<group>";
+		};
+		7DD8323A2F866FA1005FAD73 /* oraUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = oraUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7DD8321D2F866F9F005FAD73 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7DD832A02F8737BA005FAD73 /* FluidAudio in Frameworks */,
+				7DD8348D2F8C6A69005FAD73 /* MLXAudioSTT in Frameworks */,
+				7DD835032F8CD1CC005FAD73 /* WhisperKit in Frameworks */,
+				7DD832B02F900001005FAD73 /* Sparkle in Frameworks */,
+				7DD8348B2F8C6A69005FAD73 /* MLXAudioCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7DD8322A2F866FA1005FAD73 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7DD832342F866FA1005FAD73 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		7DD832172F866F9F005FAD73 = {
+			isa = PBXGroup;
+			children = (
+				7DD832222F866F9F005FAD73 /* ora */,
+				7DD832302F866FA1005FAD73 /* oraTests */,
+				7DD8323A2F866FA1005FAD73 /* oraUITests */,
+				7DD832212F866F9F005FAD73 /* Products */,
+				7DD8341F2F8C69EA005FAD73 /* Recovered References */,
+			);
+			sourceTree = "<group>";
+		};
+		7DD832212F866F9F005FAD73 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7DD832202F866F9F005FAD73 /* ora.app */,
+				7DD8322D2F866FA1005FAD73 /* oraTests.xctest */,
+				7DD832372F866FA1005FAD73 /* oraUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		7DD8341F2F8C69EA005FAD73 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				7DD832B12F900003005FAD73 /* BuildInfo.swift */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		7DD8321F2F866F9F005FAD73 /* ora */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7DD832412F866FA1005FAD73 /* Build configuration list for PBXNativeTarget "ora" */;
+			buildPhases = (
+				7DD832B02F900002005FAD73 /* Stamp Git Commit Hash */,
+				7DD8321C2F866F9F005FAD73 /* Sources */,
+				7DD8321D2F866F9F005FAD73 /* Frameworks */,
+				7DD8321E2F866F9F005FAD73 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7DD832222F866F9F005FAD73 /* ora */,
+			);
+			name = ora;
+			packageProductDependencies = (
+				7DD8329F2F8737BA005FAD73 /* FluidAudio */,
+				7DD832AF2F900001005FAD73 /* Sparkle */,
+				7DD8348A2F8C6A69005FAD73 /* MLXAudioCore */,
+				7DD8348C2F8C6A69005FAD73 /* MLXAudioSTT */,
+				7DD835022F8CD1CC005FAD73 /* WhisperKit */,
+			);
+			productName = ora;
+			productReference = 7DD832202F866F9F005FAD73 /* ora.app */;
+			productType = "com.apple.product-type.application";
+		};
+		7DD8322C2F866FA1005FAD73 /* oraTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7DD832442F866FA1005FAD73 /* Build configuration list for PBXNativeTarget "oraTests" */;
+			buildPhases = (
+				7DD832292F866FA1005FAD73 /* Sources */,
+				7DD8322A2F866FA1005FAD73 /* Frameworks */,
+				7DD8322B2F866FA1005FAD73 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7DD8322F2F866FA1005FAD73 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				7DD832302F866FA1005FAD73 /* oraTests */,
+			);
+			name = oraTests;
+			packageProductDependencies = (
+			);
+			productName = oraTests;
+			productReference = 7DD8322D2F866FA1005FAD73 /* oraTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		7DD832362F866FA1005FAD73 /* oraUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7DD832472F866FA1005FAD73 /* Build configuration list for PBXNativeTarget "oraUITests" */;
+			buildPhases = (
+				7DD832332F866FA1005FAD73 /* Sources */,
+				7DD832342F866FA1005FAD73 /* Frameworks */,
+				7DD832352F866FA1005FAD73 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7DD832392F866FA1005FAD73 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				7DD8323A2F866FA1005FAD73 /* oraUITests */,
+			);
+			name = oraUITests;
+			packageProductDependencies = (
+			);
+			productName = oraUITests;
+			productReference = 7DD832372F866FA1005FAD73 /* oraUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		7DD832182F866F9F005FAD73 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					7DD8321F2F866F9F005FAD73 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					7DD8322C2F866FA1005FAD73 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 7DD8321F2F866F9F005FAD73;
+					};
+					7DD832362F866FA1005FAD73 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 7DD8321F2F866F9F005FAD73;
+					};
+				};
+			};
+			buildConfigurationList = 7DD8321B2F866F9F005FAD73 /* Build configuration list for PBXProject "ora" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 7DD832172F866F9F005FAD73;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				7DD8329E2F8737BA005FAD73 /* XCRemoteSwiftPackageReference "FluidAudio" */,
+				7DD832AE2F900001005FAD73 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				7DD834892F8C6A69005FAD73 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */,
+				7DD835012F8CD1CC005FAD73 /* XCRemoteSwiftPackageReference "WhisperKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 7DD832212F866F9F005FAD73 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7DD8321F2F866F9F005FAD73 /* ora */,
+				7DD8322C2F866FA1005FAD73 /* oraTests */,
+				7DD832362F866FA1005FAD73 /* oraUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		7DD8321E2F866F9F005FAD73 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7DD8322B2F866FA1005FAD73 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7DD832352F866FA1005FAD73 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		7DD832B02F900002005FAD73 /* Stamp Git Commit Hash */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Stamp Git Commit Hash";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/BuildInfo.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\ncd \"$SRCROOT\"\nHASH=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)\nRAW_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo \"\")\nif [ -n \"$RAW_TAG\" ]; then\n  VERSION=\"${RAW_TAG#v}\"\nelse\n  VERSION=\"0.0\"\nfi\nmkdir -p \"$DERIVED_FILE_DIR\"\nOUT=\"$DERIVED_FILE_DIR/BuildInfo.swift\"\nNEW=\"// Generated at build time — do not edit.\\nenum BuildInfo {\\n    static let marketingVersion = \\\"$VERSION\\\"\\n    static let gitCommitHash = \\\"$HASH\\\"\\n}\\n\"\nif [ ! -f \"$OUT\" ] || [ \"$(cat \"$OUT\")\" != \"$(printf '%b' \"$NEW\")\" ]; then\n  printf '%b' \"$NEW\" > \"$OUT\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7DD8321C2F866F9F005FAD73 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7DD832B22F900004005FAD73 /* BuildInfo.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7DD832292F866FA1005FAD73 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7DD832332F866FA1005FAD73 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7DD8322F2F866FA1005FAD73 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7DD8321F2F866F9F005FAD73 /* ora */;
+			targetProxy = 7DD8322E2F866FA1005FAD73 /* PBXContainerItemProxy */;
+		};
+		7DD832392F866FA1005FAD73 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7DD8321F2F866F9F005FAD73 /* ora */;
+			targetProxy = 7DD832382F866FA1005FAD73 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		7DD8323F2F866FA1005FAD73 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		7DD832402F866FA1005FAD73 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		7DD832422F866FA1005FAD73 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ora/ora.entitlements;
+				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Ora Dev Signing";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ora/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Ora Dev";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Ora records from your microphone to transcribe your speech locally on-device.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oceanai.ora.debug;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		7DD832432F866FA1005FAD73 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ora/ora.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ora/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Ora;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Ora records from your microphone to transcribe your speech locally on-device.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oceanai.ora;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		7DD832452F866FA1005FAD73 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oceanai.oraTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ora.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ora";
+			};
+			name = Debug;
+		};
+		7DD832462F866FA1005FAD73 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oceanai.oraTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ora.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ora";
+			};
+			name = Release;
+		};
+		7DD832482F866FA1005FAD73 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oceanai.oraUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = ora;
+			};
+			name = Debug;
+		};
+		7DD832492F866FA1005FAD73 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oceanai.oraUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = ora;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7DD8321B2F866F9F005FAD73 /* Build configuration list for PBXProject "ora" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7DD8323F2F866FA1005FAD73 /* Debug */,
+				7DD832402F866FA1005FAD73 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7DD832412F866FA1005FAD73 /* Build configuration list for PBXNativeTarget "ora" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7DD832422F866FA1005FAD73 /* Debug */,
+				7DD832432F866FA1005FAD73 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7DD832442F866FA1005FAD73 /* Build configuration list for PBXNativeTarget "oraTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7DD832452F866FA1005FAD73 /* Debug */,
+				7DD832462F866FA1005FAD73 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7DD832472F866FA1005FAD73 /* Build configuration list for PBXNativeTarget "oraUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7DD832482F866FA1005FAD73 /* Debug */,
+				7DD832492F866FA1005FAD73 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		7DD8329E2F8737BA005FAD73 /* XCRemoteSwiftPackageReference "FluidAudio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/FluidInference/FluidAudio.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+		7DD832AE2F900001005FAD73 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+		7DD834892F8C6A69005FAD73 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Blaizzy/mlx-audio-swift.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+		7DD835012F8CD1CC005FAD73 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		7DD8329F2F8737BA005FAD73 /* FluidAudio */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DD8329E2F8737BA005FAD73 /* XCRemoteSwiftPackageReference "FluidAudio" */;
+			productName = FluidAudio;
+		};
+		7DD832AF2F900001005FAD73 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DD832AE2F900001005FAD73 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+		7DD8348A2F8C6A69005FAD73 /* MLXAudioCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DD834892F8C6A69005FAD73 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */;
+			productName = MLXAudioCore;
+		};
+		7DD8348C2F8C6A69005FAD73 /* MLXAudioSTT */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DD834892F8C6A69005FAD73 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */;
+			productName = MLXAudioSTT;
+		};
+		7DD835022F8CD1CC005FAD73 /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DD835012F8CD1CC005FAD73 /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 7DD832182F866F9F005FAD73 /* Project object */;
+}

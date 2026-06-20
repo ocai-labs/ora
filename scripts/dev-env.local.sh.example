@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# dev-env.local.sh.example — template for the gitignored
+# scripts/dev-env.local.sh.
+#
+# Why this file exists:
+#   By default, Debug builds sign with a local self-signed certificate
+#   named "Ora Dev Signing" (create it once with
+#   ./scripts/dev-create-cert.sh). That needs no Apple Developer account
+#   and gives a stable code-signing identity, so TCC permissions survive
+#   rebuilds. The Debug bundle id is com.oceanai.ora.debug, so the dev
+#   app coexists with an installed release Ora.
+#
+#   This file is only needed if you want to OVERRIDE that default and
+#   build Debug under your real Apple Developer team / Developer ID
+#   instead, without touching the committed pbxproj. Copy it to
+#   scripts/dev-env.local.sh, fill in your real values, and a build
+#   wrapper will source it before invoking xcodebuild.
+#
+# Setup:
+#   cp scripts/dev-env.local.sh.example scripts/dev-env.local.sh
+#   $EDITOR scripts/dev-env.local.sh   # fill in real values
+#
+# Security:
+#   scripts/dev-env.local.sh is gitignored. Do NOT commit it. The
+#   identity string contains your team id, which is non-public for
+#   open-source projects.
+
+# Replace with your "Developer ID Application: <Name> (<TEAMID>)" string.
+# Find yours with: security find-identity -v -p codesigning
+export ORA_DEV_SIGN_IDENTITY="Developer ID Application: Your Name (XXXXXXXXXX)"
+
+# Replace with your Apple Developer Team ID (10 chars).
+export ORA_DEV_TEAM="XXXXXXXXXX"

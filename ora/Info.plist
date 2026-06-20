@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+        Ora uses GENERATE_INFOPLIST_FILE=YES, so Xcode merges this file
+        with the auto-generated plist. Keep this file limited to keys that
+        have no INFOPLIST_KEY_* build-setting equivalent — right now that
+        means the Sparkle update configuration.
+    -->
+
+    <!-- Sparkle appcast lives as a release asset on a dedicated public repo.
+         /releases/latest/download/ always redirects to the newest one, so
+         no separate update server is required. -->
+    <key>SUFeedURL</key>
+    <string>https://github.com/KristampsWong/ora/releases/latest/download/appcast.xml</string>
+
+    <!-- EdDSA public key for verifying update signatures.
+         Generate with ./scripts/generate-keys.sh and paste the result here.
+         The matching private key lives at .sparkle-keys/eddsa_private_key
+         (gitignored) and in your macOS Keychain. -->
+    <key>SUPublicEDKey</key>
+    <string>vaClmPV41bWRcsR7S3WLjAh/H/jGt7XJb9uwWahmvsA=</string>
+
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+</dict>
+</plist>

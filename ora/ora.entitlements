@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Ora is intentionally NOT sandboxed.
+
+  The dictation pipeline injects text into the frontmost foreign app
+  by posting a synthetic Cmd+V via CGEvent.post(tap: .cghidEventTap).
+  macOS forbids sandboxed apps from posting cross-app events AND
+  refuses to grant Accessibility access to sandboxed apps in the
+  first place — TCC will not even add a sandboxed app to the
+  System Settings ▸ Privacy & Security ▸ Accessibility list,
+  because the entitlement that backs that grant is blocked by the
+  sandbox itself. Whisper (the predecessor) ships with the sandbox
+  off for the same reason.
+
+  Trade-off: we lose the sandbox's filesystem isolation and
+  defense-in-depth. There is no workaround on macOS — every
+  dictation tool with cross-app text injection takes this trade.
+
+  Mic access still works inside or outside the sandbox via the
+  com.apple.security.device.audio-input entitlement, which TCC
+  treats independently.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+</dict>
+</plist>

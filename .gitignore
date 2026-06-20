@@ -1,0 +1,63 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Packages/
+Package.pins
+Package.resolved
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Local dev env (signing identity, team id) — never commit.
+# Copy scripts/dev-env.local.sh.example to scripts/dev-env.local.sh
+# and fill in your own values.
+scripts/dev-env.local.sh
+
+# Development docs (internal plans, specs, design notes)
+docs/
+
+# Profiling artifacts
+*.profraw
+
+# Git worktrees
+.worktrees/
+
+# Sparkle signing keys — the EdDSA private key used to sign update DMGs
+# MUST NEVER be committed. scripts/generate-keys.sh writes it here and
+# also stores it in the macOS Keychain as a secondary copy.
+.sparkle-keys/
+
+# Release build artifacts (signed DMG + appcast.xml) produced by
+# scripts/create-release.sh before they get uploaded to a GitHub Release.
+releases/
+
+# Compiled spike harnesses
+spikes/panel-overlay-harness/harness
