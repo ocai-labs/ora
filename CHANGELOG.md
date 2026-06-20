@@ -9,6 +9,14 @@ Release notes for a given version are extracted from this file by
 `scripts/create-release.sh` and posted to the matching GitHub Release,
 so keep each version section self-contained and user-facing.
 
+## [0.5.6] - 2026-06-20
+
+### Fixed
+- In toggle mode, the text pasted after dictation could be your previous
+  clipboard contents instead of what you just dictated. Ora now waits for
+  the activation key to be released before inserting the transcript, so it
+  lands reliably and your existing clipboard is left untouched.
+
 ## [0.5.5] - 2026-06-14
 
 ### Fixed
