@@ -98,4 +98,26 @@ struct PasterPasteboardTests {
             #expect(pb.string(forType: .string) == nil)
         }
     }
+
+    // MARK: - Held-modifier gate
+
+    @Test("no held modifier means Cmd+V can be synthesized immediately")
+    func noInterferingModifier() {
+        #expect(Paster.hasInterferingModifier([]) == false)
+        // Caps Lock alone doesn't corrupt a paste.
+        #expect(Paster.hasInterferingModifier([.maskAlphaShift]) == false)
+    }
+
+    @Test("a held activation modifier blocks the synthetic paste (toggle-mode bug)")
+    func interferingModifierDetected() {
+        // Each one maps to an ActivationKey that toggle mode can leave
+        // held on the stop key-down.
+        #expect(Paster.hasInterferingModifier([.maskCommand]) == true)   // Right ⌘
+        #expect(Paster.hasInterferingModifier([.maskShift]) == true)     // Right ⇧
+        #expect(Paster.hasInterferingModifier([.maskControl]) == true)   // Right ⌃
+        #expect(Paster.hasInterferingModifier([.maskAlternate]) == true) // Right ⌥
+        #expect(Paster.hasInterferingModifier([.maskSecondaryFn]) == true) // Fn
+        // Mixed with the harmless Caps Lock still trips.
+        #expect(Paster.hasInterferingModifier([.maskAlphaShift, .maskCommand]) == true)
+    }
 }

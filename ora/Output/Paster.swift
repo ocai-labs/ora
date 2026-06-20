@@ -88,6 +88,23 @@ final class Paster {
     func paste(_ text: String) async throws {
         guard Self.isTrusted else { throw Failure.accessibilityNotTrusted }
 
+        // Wait for the activation modifier to be released before we
+        // synthesize Cmd+V. In toggle mode the stop+transcribe is
+        // triggered on the activation key's key-DOWN, so that modifier
+        // is usually still physically held when we reach here. Posting
+        // Cmd+V while it's held merges the held flag into the event (the
+        // source uses .combinedSessionState) so the keystroke doesn't
+        // register as a clean paste until the user lets go — and by then
+        // the 150 ms restore below has already put the previous clipboard
+        // back, so the target pastes THAT (the user's last copy) instead
+        // of the transcript. Hold mode releases the key before
+        // transcription even starts, so this returns immediately and the
+        // path is unchanged. Best-effort: capped by a timeout so a stuck
+        // flag can't wedge the paste, and run *before* we hijack the
+        // pasteboard so an ESC-cancel mid-wait aborts without ever
+        // touching the user's clipboard.
+        try await Self.waitForModifiersToClear()
+
         let pasteboard = NSPasteboard.general
         let snapshot = Self.snapshotPasteboard(pasteboard)
 
@@ -155,6 +172,42 @@ final class Paster {
         // those with custom event handling that ignore higher taps.
         down.post(tap: .cghidEventTap)
         up.post(tap: .cghidEventTap)
+    }
+
+    // MARK: - Held-modifier gate
+
+    /// Modifier flags that, if physically held the instant we synthesize
+    /// Cmd+V, merge into the event and stop it from registering as a
+    /// clean paste — the keystroke is effectively deferred until the user
+    /// releases the key. Caps Lock (`.maskAlphaShift`) and numeric/
+    /// secondary state are deliberately excluded: they don't corrupt a
+    /// Cmd+V. Every `ActivationKey` is one of these, which is why toggle
+    /// mode (stop on key-DOWN) reaches the paste with the key still held.
+    static let interferingFlags: CGEventFlags =
+        [.maskCommand, .maskShift, .maskControl, .maskAlternate, .maskSecondaryFn]
+
+    /// Pure predicate: does this flag set contain a modifier that would
+    /// corrupt a synthetic Cmd+V? Extracted so the gate's logic is
+    /// unit-testable without live hardware state.
+    static func hasInterferingModifier(_ flags: CGEventFlags) -> Bool {
+        !flags.intersection(interferingFlags).isEmpty
+    }
+
+    /// Suspends until no interfering modifier is physically held, polling
+    /// the live hardware state, or until `timeout` elapses (best-effort —
+    /// we'd rather paste against a stuck flag than drop the transcript).
+    /// Throws `CancellationError` if the dictation is cancelled mid-wait,
+    /// which aborts `paste` before it touches the pasteboard.
+    private static func waitForModifiersToClear(
+        timeout: Duration = .seconds(2),
+        poll: Duration = .milliseconds(15)
+    ) async throws {
+        var waited: Duration = .zero
+        while hasInterferingModifier(CGEventSource.flagsState(.combinedSessionState)),
+              waited < timeout {
+            try await Task.sleep(for: poll)
+            waited += poll
+        }
     }
 
     // MARK: - Pasteboard snapshot / restore
