@@ -61,3 +61,7 @@ releases/
 
 # Compiled spike harnesses
 spikes/panel-overlay-harness/harness
+
+# Spike benchmark audio fixtures (local-only test samples)
+spikes/**/*.wav
+spikes/**/*.aiff
