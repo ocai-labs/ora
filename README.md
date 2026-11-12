@@ -4,8 +4,8 @@
 
 # Ora
 
-[![Latest release](https://img.shields.io/github/v/release/KristampsWong/ora?display_name=tag&sort=semver&label=latest)](https://github.com/KristampsWong/ora/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/KristampsWong/ora/total?label=downloads)](https://github.com/KristampsWong/ora/releases)
+[![Latest release](https://img.shields.io/github/v/release/ocai-labs/ora?display_name=tag&sort=semver&label=latest)](https://github.com/ocai-labs/ora/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/ocai-labs/ora/total?label=downloads)](https://github.com/ocai-labs/ora/releases)
 ![Platform](https://img.shields.io/badge/platform-macOS%2014%2B%20·%20Apple%20Silicon-lightgrey)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
@@ -13,10 +13,10 @@
 your words are transcribed on-device and pasted into whatever app you're using.
 No cloud round-trip, no account, no telemetry.
 
-<img src="assets/live-preview.gif" alt="Ora live preview — as you speak, the transcript forms in real time and is pasted when you release the hotkey" width="760" />
+<img src="assets/live-preview.gif" alt="Ora live preview — as you speak, the transcript forms in a bubble above the dictation pill and is pasted when you release the hotkey" width="760" />
 
 <p>
-  <a href="https://github.com/KristampsWong/ora/releases/latest/download/Ora.dmg"><b>↓ Download Ora.dmg</b></a>
+  <a href="https://github.com/ocai-labs/ora/releases/latest/download/Ora.dmg"><b>↓ Download Ora.dmg</b></a>
   &nbsp;·&nbsp;
   <a href="#install">Install</a>
   &nbsp;·&nbsp;
@@ -45,11 +45,15 @@ the models, and your data.
   is: editors, browsers, Slack, email, terminals. If you'd rather not auto-paste,
   Ora can just copy to the clipboard instead.
 - **Live preview** *(optional)* — switch the dictation display to **Panel** with
-  a Parakeet model and watch the text form as you speak. Nothing is typed until
-  you release the key, so your cursor and existing text stay untouched.
-- **Your choice of models** — on-device **Parakeet** (NVIDIA), **Whisper**
-  (Tiny → Large-v3-Turbo), and **Qwen3-ASR**, or bring your own API key for
-  **OpenAI** / **Groq**. Switch any time from Settings.
+  a Parakeet or Nemotron model and watch the text form in a bubble above the
+  pill as you speak. Nothing is typed until you release the key, so your cursor
+  and existing text stay untouched.
+- **Your choice of models** — on-device **Parakeet** and **Nemotron Unified**
+  (NVIDIA), **Whisper** (Tiny → Large-v3-Turbo), and **Qwen3-ASR**, or bring
+  your own API key for **OpenAI** / **Groq**. Switch any time from Settings.
+- **Pin your language** — Nemotron Unified covers 25 European languages and
+  lets you lock the one you speak (say, French), so it doesn't drift into
+  English words mid-sentence. Punctuation is built in.
 - **Push-to-talk or toggle** — hold the hotkey to dictate, or press once to
   start and again to stop. Cancel any in-flight dictation with **ESC**.
 - **Menu-bar app** — no Dock clutter, no window to manage; just a status-bar icon.
@@ -64,7 +68,7 @@ the models, and your data.
 
 ## Install
 
-**[→ Download Ora.dmg (latest)](https://github.com/KristampsWong/ora/releases/latest/download/Ora.dmg)**
+**[→ Download Ora.dmg (latest)](https://github.com/ocai-labs/ora/releases/latest/download/Ora.dmg)**
 
 1. The download starts immediately.
 2. Open the DMG and drag **Ora** onto the Applications shortcut.
@@ -88,8 +92,8 @@ Building from source additionally needs Xcode 26+ — see [Build from source](#b
 
 Ora is built around a simple rule: **your voice never leaves your Mac.**
 
-- **No network calls for transcription.** On-device Parakeet, Whisper, and
-  Qwen models run entirely locally via [FluidAudio](https://github.com/FluidInference/FluidAudio)
+- **No network calls for transcription.** On-device Parakeet, Nemotron,
+  Whisper, and Qwen models run entirely locally via [FluidAudio](https://github.com/FluidInference/FluidAudio)
   and MLX. Audio is captured, transcribed, and discarded on your machine.
   *(The optional OpenAI / Groq backends are the one exception — they upload
   audio to that provider, and only if you explicitly choose one.)*
@@ -110,7 +114,7 @@ No Apple Developer account required — the project uses ad-hoc signing
 (`Sign to Run Locally`) out of the box.
 
 ```bash
-git clone https://github.com/KristampsWong/ora.git
+git clone https://github.com/ocai-labs/ora.git
 cd ora
 ./scripts/dev-launch.sh
 ```
