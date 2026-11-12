@@ -8,7 +8,7 @@
 //   - the pill (OraPill — the same 72×30 capsule as the top style and
 //     as the TypeScript Ora), which never moves or resizes while
 //     recording;
-//   - a speech bubble ABOVE it holding the live partial. It appears
+//   - a bubble ABOVE it holding the live partial. It appears
 //     when the first partial arrives (fade + slight rise out of the
 //     pill), stays through transcribing so the last partial is visible
 //     while the spinner runs, and disappears with the overlay or on any
@@ -51,8 +51,7 @@ struct PanelOverlayView: View {
     private static let bubbleHorizontalPadding: CGFloat = 14
     private static let bubbleVerticalPadding: CGFloat = 10
     private static let bubbleCornerRadius: CGFloat = 14
-    private static let bubbleTailSize = CGSize(width: 12, height: 6)
-    private static let bubbleToPillGap: CGFloat = 4
+    private static let bubbleToPillGap: CGFloat = 8
     private static let maxLines: CGFloat = 3
     private static let lineSpacing: CGFloat = 3
 
@@ -215,14 +214,10 @@ struct PanelOverlayView: View {
     // MARK: - Bubble
 
     private var bubble: some View {
-        let shape = SpeechBubbleShape(
-            cornerRadius: Self.bubbleCornerRadius,
-            tailSize: Self.bubbleTailSize)
+        let shape = RoundedRectangle(cornerRadius: Self.bubbleCornerRadius, style: .continuous)
         return transcriptTail
             .padding(.horizontal, Self.bubbleHorizontalPadding)
             .padding(.vertical, Self.bubbleVerticalPadding)
-            // The tail hangs below the body, pointing at the pill.
-            .padding(.bottom, Self.bubbleTailSize.height)
             .frame(width: Self.bubbleWidth)
             .background(shape.fill(Color.black))
             .overlay(shape.stroke(.white.opacity(0.15), lineWidth: 1))
@@ -444,41 +439,5 @@ private struct TranscriptCappedHeightKey: PreferenceKey {
     static func reduce(value: inout TranscriptMetrics, nextValue: () -> TranscriptMetrics) {
         let next = nextValue()
         if !next.text.isEmpty { value = next }
-    }
-}
-
-/// Rounded rectangle with a small centred tail on the bottom edge,
-/// drawn as ONE path so the hairline border runs around the tail
-/// instead of cutting across its base. The tail occupies the bottom
-/// `tailSize.height` of the rect.
-private struct SpeechBubbleShape: Shape {
-    var cornerRadius: CGFloat
-    var tailSize: CGSize
-
-    func path(in rect: CGRect) -> Path {
-        let body = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height - tailSize.height)
-        let r = min(cornerRadius, body.height / 2, body.width / 2)
-        let tailHalf = tailSize.width / 2
-        var p = Path()
-        p.move(to: CGPoint(x: body.minX + r, y: body.minY))
-        p.addLine(to: CGPoint(x: body.maxX - r, y: body.minY))
-        p.addArc(center: CGPoint(x: body.maxX - r, y: body.minY + r), radius: r,
-                 startAngle: .degrees(-90), endAngle: .degrees(0), clockwise: false)
-        p.addLine(to: CGPoint(x: body.maxX, y: body.maxY - r))
-        p.addArc(center: CGPoint(x: body.maxX - r, y: body.maxY - r), radius: r,
-                 startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false)
-        p.addLine(to: CGPoint(x: body.midX + tailHalf, y: body.maxY))
-        p.addQuadCurve(to: CGPoint(x: body.midX, y: rect.maxY),
-                       control: CGPoint(x: body.midX + tailHalf * 0.25, y: body.maxY + tailSize.height * 0.4))
-        p.addQuadCurve(to: CGPoint(x: body.midX - tailHalf, y: body.maxY),
-                       control: CGPoint(x: body.midX - tailHalf * 0.25, y: body.maxY + tailSize.height * 0.4))
-        p.addLine(to: CGPoint(x: body.minX + r, y: body.maxY))
-        p.addArc(center: CGPoint(x: body.minX + r, y: body.maxY - r), radius: r,
-                 startAngle: .degrees(90), endAngle: .degrees(180), clockwise: false)
-        p.addLine(to: CGPoint(x: body.minX, y: body.minY + r))
-        p.addArc(center: CGPoint(x: body.minX + r, y: body.minY + r), radius: r,
-                 startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
-        p.closeSubpath()
-        return p
     }
 }
