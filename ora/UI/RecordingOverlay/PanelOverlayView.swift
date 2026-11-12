@@ -2,42 +2,29 @@
 //  PanelOverlayView.swift
 //  ora
 //
-//  Bottom-of-screen "panel" overlay style for dictation with live
-//  preview (spec §4 / §5.4). Two forms rendered by the same card:
+//  Bottom-of-screen "panel" overlay style with the live transcription
+//  preview. Two separate pieces, stacked and bottom-anchored:
 //
-//   - Full: fixed-width card, bottom-anchored, grows only UPWARD.
-//     (1) Before the first partial the compact pill shows just the
-//     waveform. (2) The first partial expands the card ONCE to a centred,
-//     fixed width — a single gentle-overshoot motion — and from then on
-//     the width never changes, so there is zero left/right jitter as
-//     words stream in. The text spans the full card width ABOVE the
-//     waveform, which stays centred in a bottom row at the height it had
-//     in the compact pill. The text wraps at its final column from the
-//     first frame; the card clips, then reveals it as it grows.
-//     (3) Height: the card grows one line at a time up to 3 lines, then
-//     the text tail-scrolls inside that 3-line window — the newest line
-//     pinned at the bottom (right above the waveform), older lines
-//     hard-clipped out the top (no fade). Text is full-replacement each
-//     update.
+//   - the pill (OraPill — the same 72×30 capsule as the top style and
+//     as the TypeScript Ora), which never moves or resizes while
+//     recording;
+//   - a speech bubble ABOVE it holding the live partial. It appears
+//     when the first partial arrives (fade + slight rise out of the
+//     pill), stays through transcribing so the last partial is visible
+//     while the spinner runs, and disappears with the overlay or on any
+//     error.
 //
-//     The text column width is FIXED (= maxTextWidth), so the card never
-//     re-wraps mid-stream and we no longer measure single-line ideal
-//     width. We measure the partial's wrapped height twice (GeometryReader
-//     twins: uncapped, and capped at 3 lines) to size the window and to
-//     detect overflow past 3 lines. The card height hugs the resulting
-//     window so it (the visible text window) and the card grow on the
-//     SAME transaction — a freshly wrapped line is revealed only as the
-//     bar grows, never spilling outside it first.
-//
-//   - Compact: pill-equivalent single line (waveform / dots / error)
-//     at the bottom position. Used when the model has no live preview,
-//     before the first partial arrives, and for all error phases.
+//  The bubble has a fixed width, so words streaming in never make it
+//  jitter sideways. Its height follows the text one line at a time up
+//  to 3 lines, then the text tail-scrolls inside that 3-line window —
+//  newest line pinned at the bottom, older lines hard-clipped out the
+//  top (no fade, no ScrollView). Text is full-replacement each update,
+//  with an inline diff crossfade on the changed tail.
 //
 //  Like RecordingOverlayView this is a pure binding to
 //  RecordingOverlayState — no control logic. The hosting NSPanel is
-//  created at full-form size with a transparent background; the card
-//  grows/shrinks inside it, bottom-anchored, so the NSPanel itself
-//  never resizes.
+//  created at full size with a transparent background; everything grows
+//  upward inside it, so the NSPanel itself never resizes.
 //
 
 import AppKit
@@ -45,45 +32,33 @@ import SwiftUI
 
 struct PanelOverlayView: View {
     var state: RecordingOverlayState
+    /// Kept for RecordingOverlayController's API. The pill no longer has
+    /// a hover ×: cancelling is ESC only, as in the TypeScript version.
     var onCancel: (() -> Void)? = nil
 
     // MARK: - Layout constants
 
-    /// NSPanel content size. Wide/tall enough for the expanded card
-    /// plus slack so the spring overshoot on expand isn't clipped at
-    /// the hosting-view edge.
+    /// NSPanel content size: room for the 3-line bubble + gap + pill,
+    /// plus slack for the shadows and the bubble's entrance overshoot.
     static let hostSize = NSSize(width: 600, height: 168)
 
-    /// Gap between the hosting view's bottom edge and the card's bottom
-    /// edge (lifts the card off the screen edge and leaves overshoot
-    /// room). RecordingOverlayController subtracts this when positioning
-    /// so the visible card bottom sits exactly at its target height.
+    /// Gap between the hosting view's bottom edge and the pill's bottom
+    /// edge (shadow room). RecordingOverlayController subtracts this when
+    /// positioning so the visible pill bottom sits at its target height.
     static let bottomInset: CGFloat = 16
 
-    private static let expandedWidth: CGFloat = 440
-    private static let maxLines: CGFloat = 3           // height cap: 3-line window
-    private static let lineSpacing: CGFloat = 3        // matches partialLayer / height twin
-    private static let compactHeight: CGFloat = 38     // same as the pill
+    private static let bubbleWidth: CGFloat = 420
+    private static let bubbleHorizontalPadding: CGFloat = 14
+    private static let bubbleVerticalPadding: CGFloat = 10
+    private static let bubbleCornerRadius: CGFloat = 14
+    private static let bubbleTailSize = CGSize(width: 12, height: 6)
+    private static let bubbleToPillGap: CGFloat = 4
+    private static let maxLines: CGFloat = 3
+    private static let lineSpacing: CGFloat = 3
 
-    /// Height of the bottom indicator row in the expanded card — the
-    /// default WaveformView's max bar height, so the bars render at the
-    /// same size in both forms.
-    private static let indicatorRowHeight: CGFloat = 20
-
-    /// Expanded-card paddings. The bottom inset is chosen so the indicator
-    /// row's centre sits at compactHeight / 2 above the card's bottom edge
-    /// — exactly where the compact pill centres its waveform — so the
-    /// waveform doesn't hop when the pill expands (the card is
-    /// bottom-anchored, all growth goes upward above it).
-    private static let expandedTopPadding: CGFloat = 13
-    private static let expandedBottomPadding: CGFloat = (compactHeight - indicatorRowHeight) / 2
-    private static let textToIndicatorSpacing: CGFloat = 8
-
-    /// Fixed width of the text column once expanded: the card width minus
-    /// horizontal padding (16×2). The text sits above the waveform row and
-    /// spans the full card, and it always wraps at this width, so the card
-    /// width is constant after the one-time expand.
-    private static let maxTextWidth: CGFloat = expandedWidth - 32
+    /// Fixed text column width = bubble width minus its padding. The
+    /// text always wraps at this width, so the bubble never re-wraps.
+    private static let maxTextWidth: CGFloat = bubbleWidth - 2 * bubbleHorizontalPadding
 
     private static let transcriptFont = Font.system(size: 13, weight: .medium, design: .rounded)
 
@@ -100,11 +75,10 @@ struct PanelOverlayView: View {
     /// and the overflow test derive from this, NOT from a Latin sample.
     @State private var cappedHeight: CGFloat = 0
 
-    /// Explicit window height: the real capped height, so the card grows
-    /// one line at a time (1 → 2 → 3 lines) and then tail-scrolls. With
-    /// the waveform row directly under the text, the old jump straight to
-    /// a 3-line window left an empty line as a visible gap between the
-    /// text and the waveform. Nil before the first measurement lands (one
+    /// Explicit window height: the real capped height, so the bubble grows
+    /// one line at a time (1 → 2 → 3 lines) and then tail-scrolls, so the
+    /// bubble always hugs its text (no empty 3rd line). Nil before the
+    /// first measurement lands (one
     /// layout pass), letting the frame follow the proposal. Using the real
     /// `cappedHeight` means CJK / taller scripts get their true height.
     private var visibleTextHeight: CGFloat? {
@@ -194,118 +168,28 @@ struct PanelOverlayView: View {
             generation: previous.generation + 1)
     }
 
+
     var body: some View {
-        card
-            // onHover on the card itself (not the expanded frame) so the
-            // × never shows while the cursor is in transparent margin —
-            // same rationale as RecordingOverlayView.
-            .onHover { hovering in
-                state.isCancelHovered = hovering
+        VStack(spacing: Self.bubbleToPillGap) {
+            if showsBubble {
+                bubble
+                    .transition(
+                        .opacity
+                            .combined(with: .scale(scale: 0.94, anchor: .bottom))
+                            .combined(with: .offset(y: 6))
+                    )
             }
-            .padding(.bottom, Self.bottomInset)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-    }
-
-    // MARK: - Form selection
-
-    /// Full form only while live partials are meaningful: the model
-    /// supports preview, at least one partial has arrived, and we're
-    /// recording (or transcribing — keep the last partial visible while
-    /// the dots spin). Error phases collapse to the compact error pill.
-    private var isExpanded: Bool {
-        guard state.supportsLivePreview, !state.partialText.isEmpty else { return false }
-        switch state.phase {
-        case .recording, .transcribing: return true
-        default: return false
+            OraPill(phase: state.phase, audioLevel: state.audioLevel)
         }
-    }
-
-    /// Same semantics as the pill: × only while hovered and only during
-    /// recording / transcribing.
-    private var showsCancelControl: Bool {
-        guard state.isCancelHovered else { return false }
-        switch state.phase {
-        case .recording, .transcribing: return true
-        default: return false
-        }
-    }
-
-    // MARK: - Card
-
-    private var card: some View {
-        // Text on top, waveform in a centred row underneath. ONE VStack in
-        // both forms — the compact pill is just the bottom row on its own —
-        // so the indicator keeps its identity across the expand (no
-        // container swap that would restart the bar springs / DotsView
-        // task). The hosting frame is bottom-anchored, so the waveform row
-        // stays put and every bit of height growth (the expand, the 3-line
-        // jump) extends upward above it.
-        VStack(alignment: .center, spacing: Self.textToIndicatorSpacing) {
-            if isExpanded {
-                transcriptTail
-                    .transition(.opacity)
-            }
-
-            // In the compact pill the × sits inline next to the waveform,
-            // as before; in the expanded card it moves to the overlay
-            // below so it can't push the centred waveform sideways (and
-            // can't be pushed past the clipped right edge, which is what
-            // happened with the old fixed-width HStack).
-            HStack(spacing: 12) {
-                indicator
-                if showsCancelControl && !isExpanded {
-                    cancelButton
-                }
-            }
-            .frame(height: isExpanded ? Self.indicatorRowHeight : nil)
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, isExpanded ? Self.expandedTopPadding : 0)
-        .padding(.bottom, isExpanded ? Self.expandedBottomPadding : 0)
-        // Fixed expanded width, content bottom-centred; the card clips its
-        // content and reveals it as the width animates out. Compact hugs
-        // the lone indicator row.
-        .frame(
-            width: isExpanded ? Self.expandedWidth : nil,
-            height: isExpanded ? nil : Self.compactHeight,
-            alignment: isExpanded ? .bottom : .center
-        )
-        .overlay(alignment: .bottomTrailing) {
-            if showsCancelControl && isExpanded {
-                cancelButton
-                    .frame(height: Self.indicatorRowHeight)
-                    .padding(.trailing, 12)
-                    .padding(.bottom, Self.expandedBottomPadding)
-            }
-        }
-        .background(Color.black)
-        .clipShape(RoundedRectangle(
-            cornerRadius: isExpanded ? 18 : Self.compactHeight / 2,
-            style: .continuous
-        ))
-        // The one-time expand (compact pill → fixed-width card) rides a
-        // gentle-overshoot spring — the Apple "easeOutBack" feel. After
-        // that the width never changes again.
-        .animation(.spring(response: 0.42, dampingFraction: 0.72), value: isExpanded)
-        // Line-by-line growth: keyed to the measured natural height (which the
-        // height twin commits alongside the visible text), eased with no
-        // overshoot so the bar settles cleanly into the new window. The
-        // window height rides this same transaction, so a freshly wrapped
-        // line is revealed only as the bar grows — never spilling first.
-        // Window growth is driven by cappedHeight (real per-script 3-line
-        // height); textNaturalHeight covers the bottom-anchor flip. Key
-        // both so the height eases whichever measurement moves it.
-        .animation(.smooth(duration: 0.42), value: cappedHeight)
-        .animation(.smooth(duration: 0.42), value: textNaturalHeight)
-        .animation(.spring(response: 0.28, dampingFraction: 0.85), value: state.phase)
-        .animation(.easeInOut(duration: 0.12), value: showsCancelControl)
+        .animation(.spring(response: 0.34, dampingFraction: 0.78), value: showsBubble)
+        .padding(.bottom, Self.bottomInset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         // Fresh dictation (coordinator clears the partial on
-        // `.starting`): drop the previous sentence's measurements so
-        // the next expansion starts from scratch instead of animating
-        // down from the old card size. No transition for the reset —
-        // the tail view is already gone (isExpanded is false).
-        // Non-empty partials commit via the measurement preferences
-        // in transcriptTail, so text and geometry land together.
+        // `.starting`): drop the previous sentence's measurements so the
+        // next bubble starts from scratch instead of animating down from
+        // the old size. Non-empty partials commit via the measurement
+        // preferences in transcriptTail, so text and geometry land
+        // together.
         .onChange(of: state.partialText) { _, newValue in
             guard newValue.isEmpty else { return }
             textNaturalHeight = 0
@@ -315,44 +199,41 @@ struct PanelOverlayView: View {
         }
     }
 
-    private var cancelButton: some View {
-        Button {
-            onCancel?()
-        } label: {
-            Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.85))
+    /// The bubble shows only while live partials are meaningful: the
+    /// model supports preview, at least one partial has arrived, and
+    /// we're recording (or transcribing — keep the last partial visible
+    /// while the spinner runs). Errors drop it; the pill carries the
+    /// error on its own.
+    private var showsBubble: Bool {
+        guard state.supportsLivePreview, !state.partialText.isEmpty else { return false }
+        switch state.phase {
+        case .recording, .transcribing: return true
+        default: return false
         }
-        .buttonStyle(.plain)
-        .transition(.opacity)
     }
 
-    /// Bottom row: phase parity with the pill — waveform while
-    /// recording, dots while transcribing, error content otherwise.
-    /// Same waveform metrics in both forms, so the bars don't change
-    /// size (or swap views) when the pill expands.
-    @ViewBuilder
-    private var indicator: some View {
-        switch state.phase {
-        case .errorNoMic:
-            OverlayErrorContent(icon: "mic.slash.fill", color: .red, text: "Access Not Granted")
-                .transition(.opacity)
-        case .errorNoAccessibility:
-            OverlayErrorContent(icon: "hand.raised.fill", color: .red, text: "Accessibility Off")
-                .transition(.opacity)
-        case .errorNoModel:
-            OverlayErrorContent(icon: "exclamationmark.triangle.fill", color: .orange, text: "No Model")
-                .transition(.opacity)
-        case .errorGeneric(let message):
-            OverlayErrorContent(icon: "exclamationmark.triangle.fill", color: .orange, text: message)
-                .transition(.opacity)
-        case .transcribing:
-            DotsView()
-                .transition(.opacity)
-        case .recording, .done:
-            WaveformView(audioLevel: state.audioLevel)
-                .transition(.opacity)
-        }
+    // MARK: - Bubble
+
+    private var bubble: some View {
+        let shape = SpeechBubbleShape(
+            cornerRadius: Self.bubbleCornerRadius,
+            tailSize: Self.bubbleTailSize)
+        return transcriptTail
+            .padding(.horizontal, Self.bubbleHorizontalPadding)
+            .padding(.vertical, Self.bubbleVerticalPadding)
+            // The tail hangs below the body, pointing at the pill.
+            .padding(.bottom, Self.bubbleTailSize.height)
+            .frame(width: Self.bubbleWidth)
+            .background(shape.fill(Color.black))
+            .overlay(shape.stroke(.white.opacity(0.15), lineWidth: 1))
+            .compositingGroup()
+            .shadow(color: .black.opacity(0.2), radius: 7, x: 0, y: 5)
+            // The text window grows line by line, keyed to the measured
+            // heights (committed alongside the visible text), eased with
+            // no overshoot. cappedHeight drives growth; textNaturalHeight
+            // covers the bottom-anchor flip once it overflows 3 lines.
+            .animation(.smooth(duration: 0.32), value: cappedHeight)
+            .animation(.smooth(duration: 0.32), value: textNaturalHeight)
     }
 
     /// Tail-follow live text in a fixed-width column. The column width is
@@ -363,7 +244,7 @@ struct PanelOverlayView: View {
     /// overflows does it bottom-anchor and scroll, older lines hard-clip
     /// out the top (`.clipped()`, no fade). No ScrollView — no re-scroll
     /// jumping at 1 Hz replacements; the Text content swaps instantly,
-    /// only the card's container geometry animates.
+    /// only the bubble's container geometry animates.
     private var transcriptTail: some View {
         // Inline diff crossfade (spec §8 risk 2), mirroring
         // spikes/diff-fade-demo.html mode B exactly:
@@ -385,7 +266,7 @@ struct PanelOverlayView: View {
         // the write transaction: a withAnimation write also animated
         // layout and made the block slide in from the bottom-left.
         // (A whole-layer contentTransition crossfade dimmed ALL the
-        // text against the black card — the flashing "black edges".)
+        // text against the black bubble — the flashing "black edges".)
         //
         // Geometry: the column width is constant (maxTextWidth), so the
         // layers always lay out at their final width and never re-wrap.
@@ -430,7 +311,7 @@ struct PanelOverlayView: View {
         // measured natural height land in ONE transaction (one layout
         // pass after the partial arrives). Plain writes, deliberately NOT
         // withAnimation — the crossfade rides on the transition / the
-        // explicit ghostOpacity animation; the card-level
+        // explicit ghostOpacity animation; the bubble-level
         // .animation(value: textNaturalHeight/cappedHeight) carries the
         // window growth.
         .onPreferenceChange(TranscriptHeightKey.self) { metrics in
@@ -563,5 +444,41 @@ private struct TranscriptCappedHeightKey: PreferenceKey {
     static func reduce(value: inout TranscriptMetrics, nextValue: () -> TranscriptMetrics) {
         let next = nextValue()
         if !next.text.isEmpty { value = next }
+    }
+}
+
+/// Rounded rectangle with a small centred tail on the bottom edge,
+/// drawn as ONE path so the hairline border runs around the tail
+/// instead of cutting across its base. The tail occupies the bottom
+/// `tailSize.height` of the rect.
+private struct SpeechBubbleShape: Shape {
+    var cornerRadius: CGFloat
+    var tailSize: CGSize
+
+    func path(in rect: CGRect) -> Path {
+        let body = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height - tailSize.height)
+        let r = min(cornerRadius, body.height / 2, body.width / 2)
+        let tailHalf = tailSize.width / 2
+        var p = Path()
+        p.move(to: CGPoint(x: body.minX + r, y: body.minY))
+        p.addLine(to: CGPoint(x: body.maxX - r, y: body.minY))
+        p.addArc(center: CGPoint(x: body.maxX - r, y: body.minY + r), radius: r,
+                 startAngle: .degrees(-90), endAngle: .degrees(0), clockwise: false)
+        p.addLine(to: CGPoint(x: body.maxX, y: body.maxY - r))
+        p.addArc(center: CGPoint(x: body.maxX - r, y: body.maxY - r), radius: r,
+                 startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false)
+        p.addLine(to: CGPoint(x: body.midX + tailHalf, y: body.maxY))
+        p.addQuadCurve(to: CGPoint(x: body.midX, y: rect.maxY),
+                       control: CGPoint(x: body.midX + tailHalf * 0.25, y: body.maxY + tailSize.height * 0.4))
+        p.addQuadCurve(to: CGPoint(x: body.midX - tailHalf, y: body.maxY),
+                       control: CGPoint(x: body.midX - tailHalf * 0.25, y: body.maxY + tailSize.height * 0.4))
+        p.addLine(to: CGPoint(x: body.minX + r, y: body.maxY))
+        p.addArc(center: CGPoint(x: body.minX + r, y: body.maxY - r), radius: r,
+                 startAngle: .degrees(90), endAngle: .degrees(180), clockwise: false)
+        p.addLine(to: CGPoint(x: body.minX, y: body.minY + r))
+        p.addArc(center: CGPoint(x: body.minX + r, y: body.minY + r), radius: r,
+                 startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
+        p.closeSubpath()
+        return p
     }
 }

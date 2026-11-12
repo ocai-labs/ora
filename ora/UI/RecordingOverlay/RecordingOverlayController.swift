@@ -74,7 +74,7 @@ final class RecordingOverlayController {
             hosting = NSHostingView(rootView: AnyView(
                 RecordingOverlayView(state: state, onCancel: onCancel)
             ))
-            panelSize = NSSize(width: Self.panelWidth, height: hosting.fittingSize.height)
+            panelSize = NSSize(width: Self.panelWidth, height: RecordingOverlayView.hostHeight)
         case .panel:
             // Full-form size up front; the SwiftUI card expands inside
             // the transparent panel, bottom-anchored. The NSPanel never
@@ -113,8 +113,10 @@ final class RecordingOverlayController {
             let y: CGFloat
             switch style {
             case .pill:
-                // Top of the screen, as ever.
-                y = screenFrame.maxY - 50
+                // Panel flush with the top of the visible frame; the
+                // pill sits RecordingOverlayView.topInset (12pt) below
+                // it, i.e. just under the menu bar.
+                y = screenFrame.maxY - panelSize.height
             case .panel:
                 // Bottom of the screen, card bottom ~60 pt above
                 // visibleFrame.minY. The hosting view extends

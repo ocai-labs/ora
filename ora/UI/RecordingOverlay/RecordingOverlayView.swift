@@ -146,77 +146,24 @@ struct OverlayErrorContent: View {
 
 // MARK: - Pill overlay
 
+/// Top-of-screen pill style: just the shared OraPill, 12pt below the
+/// top of the panel (RecordingOverlayController puts the panel flush
+/// with the top of the visible frame, so the pill sits 12pt under the
+/// menu bar — same as the TS version's TOP_MARGIN). The rest of the
+/// fixed-height panel is transparent room for the error pill and the
+/// shadow.
 struct RecordingOverlayView: View {
     var state: RecordingOverlayState
+    /// Kept for RecordingOverlayController's API. The pill no longer has
+    /// a hover ×: cancelling is ESC only, as in the TypeScript version.
     var onCancel: (() -> Void)? = nil
 
+    static let topInset: CGFloat = 12
+    static let hostHeight: CGFloat = 76
+
     var body: some View {
-        // onHover attaches to the pill itself, BEFORE the frame
-        // expansion — on the full-width invisible strip it fired while
-        // the cursor was in the transparent margin beside the pill,
-        // showing the × with nothing visually under the cursor.
-        pill
-            .onHover { hovering in
-                state.isCancelHovered = hovering
-            }
-            .frame(maxWidth: .infinity)
-    }
-
-    /// Cancel affordance shows only during recording / transcribing and
-    /// only while the user is hovering the pill. A small trailing × in
-    /// a circle, clickable. Visual polish (animations, slide-out)
-    /// deferred — see spec § 3b.
-    private var showsCancelControl: Bool {
-        guard state.isCancelHovered else { return false }
-        switch state.phase {
-        case .recording, .transcribing: return true
-        default: return false
-        }
-    }
-
-    private var pill: some View {
-        HStack(spacing: 10) {
-            Group {
-                switch state.phase {
-                case .errorNoMic:
-                    OverlayErrorContent(icon: "mic.slash.fill", color: .red, text: "Access Not Granted")
-                        .transition(.opacity)
-                case .errorNoAccessibility:
-                    OverlayErrorContent(icon: "hand.raised.fill", color: .red, text: "Accessibility Off")
-                        .transition(.opacity)
-                case .errorNoModel:
-                    OverlayErrorContent(icon: "exclamationmark.triangle.fill", color: .orange, text: "No Model")
-                        .transition(.opacity)
-                case .errorGeneric(let message):
-                    OverlayErrorContent(icon: "exclamationmark.triangle.fill", color: .orange, text: message)
-                        .transition(.opacity)
-                case .transcribing:
-                    DotsView()
-                        .transition(.opacity)
-                case .recording, .done:
-                    WaveformView(audioLevel: state.audioLevel)
-                        .transition(.opacity)
-                }
-            }
-
-            if showsCancelControl {
-                Button {
-                    onCancel?()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.85))
-                }
-                .buttonStyle(.plain)
-                .transition(.opacity)
-            }
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 38)
-        .background(Color.black)
-        .clipShape(Capsule())
-        .shadow(color: .black.opacity(0.25), radius: 10, x: 0, y: 4)
-        .animation(.spring(response: 0.28, dampingFraction: 0.8), value: state.phase)
-        .animation(.easeInOut(duration: 0.12), value: showsCancelControl)
+        OraPill(phase: state.phase, audioLevel: state.audioLevel)
+            .padding(.top, Self.topInset)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
