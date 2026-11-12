@@ -17,6 +17,14 @@
 //  Shared by both overlay styles (top pill, bottom panel with the live
 //  preview bubble), so the two never drift apart again.
 //
+//  Surface (`oraOverlaySurface`, also used by the preview bubble):
+//  macOS 26+ gets a dark frosted glass; older systems keep the opaque
+//  black. Note this is NOT full "Liquid Glass": measured on macOS 27.2,
+//  Apple's glass only refracts / rim-lights content inside its own
+//  window. Over other apps — where this overlay always floats — it
+//  renders as an adaptive blur + tint, whichever API hosts it
+//  (`.glassEffect`, `NSGlassEffectView`, as content view or not).
+//
 
 import SwiftUI
 
@@ -215,13 +223,7 @@ struct OraPill: View {
             // Recording / transcribing: fixed 72×30. Error: hugs its
             // one-line label (the label is fixedSize, never truncated).
             .frame(width: isError ? nil : 72, height: isError ? 32 : 30)
-            .background(Color.black)
-            .clipShape(RoundedRectangle(cornerRadius: isError ? 16 : 15, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: isError ? 16 : 15, style: .continuous)
-                    .strokeBorder(.white.opacity(0.15), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.2), radius: 7, x: 0, y: 5)
+            .oraOverlaySurface(RoundedRectangle(cornerRadius: isError ? 16 : 15, style: .continuous))
             // Fade in only, no movement: it coincides with the panel
             // ordering front, and any offset reads as a jolt.
             .opacity(appeared ? 1 : 0)
@@ -267,6 +269,47 @@ private struct PillErrorContent: View {
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .fixedSize()
+        }
+    }
+}
+
+// MARK: - Surface
+
+extension View {
+    /// The pill / bubble surface. See the file header for why the macOS
+    /// 26+ variant is a dark frosted glass and not lensing Liquid Glass.
+    func oraOverlaySurface<S: InsettableShape>(_ shape: S) -> some View {
+        modifier(OraOverlaySurface(shape: shape))
+    }
+}
+
+private struct OraOverlaySurface<S: InsettableShape>: ViewModifier {
+    let shape: S
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            // `.clear` glass over a 55 % black fill: the darkest variant
+            // that still lets the background through. Compared side by
+            // side over a light, busy desktop, `.regular` (with or
+            // without tint) stayed mid-grey and `.clear.tint(black)`
+            // looked muddy; this one keeps white bars / text clearly
+            // legible. Dark colour scheme so the glass never goes light
+            // in Light mode. No extra shadow (the glass brings its own
+            // depth) and no compositingGroup — flattening offscreen can
+            // break the glass's backdrop sampling.
+            content
+                .background(shape.fill(.black.opacity(0.55)))
+                .glassEffect(.clear, in: shape)
+                .overlay(shape.strokeBorder(.white.opacity(0.12), lineWidth: 1))
+                .environment(\.colorScheme, .dark)
+        } else {
+            // Pre-26: the opaque black pill, hairline rim so it still
+            // reads on dark backgrounds.
+            content
+                .background(shape.fill(.black))
+                .overlay(shape.strokeBorder(.white.opacity(0.15), lineWidth: 1))
+                .compositingGroup()
+                .shadow(color: .black.opacity(0.2), radius: 7, x: 0, y: 5)
         }
     }
 }

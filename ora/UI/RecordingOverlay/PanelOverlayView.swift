@@ -219,10 +219,7 @@ struct PanelOverlayView: View {
             .padding(.horizontal, Self.bubbleHorizontalPadding)
             .padding(.vertical, Self.bubbleVerticalPadding)
             .frame(width: Self.bubbleWidth)
-            .background(shape.fill(Color.black))
-            .overlay(shape.stroke(.white.opacity(0.15), lineWidth: 1))
-            .compositingGroup()
-            .shadow(color: .black.opacity(0.2), radius: 7, x: 0, y: 5)
+            .oraOverlaySurface(shape)
             // The text window grows line by line, keyed to the measured
             // heights (committed alongside the visible text), eased with
             // no overshoot. cappedHeight drives growth; textNaturalHeight
