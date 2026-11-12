@@ -5,7 +5,8 @@
 # rather than being checked into project.pbxproj:
 #
 #   - MARKETING_VERSION       <- latest git tag (e.g. v1.0.0 -> 1.0.0)
-#   - CURRENT_PROJECT_VERSION <- total commit count (monotonically increasing)
+#   - CURRENT_PROJECT_VERSION <- total commit count + BUILD_OFFSET
+#                                (monotonically increasing)
 #   - DEVELOPMENT_TEAM        <- $ORA_DEV_TEAM env var (from
 #                                scripts/dev-env.local.sh, gitignored)
 #
@@ -52,7 +53,13 @@ if [ "$TAG_COMMIT" != "$HEAD_COMMIT" ]; then
     echo ""
 fi
 
-BUILD=$(git rev-list --count HEAD)
+# This repo's history is a filtered snapshot of the original, whose
+# commit count drove the build numbers up to v0.5.6 (build 184). Sparkle
+# only offers an update whose CFBundleVersion is higher than the
+# installed one, so continue from there instead of restarting at the
+# snapshot's own (much smaller) commit count.
+BUILD_OFFSET=184
+BUILD=$(( $(git rev-list --count HEAD) + BUILD_OFFSET ))
 
 # ============================================
 # Resolve signing team ID

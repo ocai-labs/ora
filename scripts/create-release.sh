@@ -2,10 +2,13 @@
 # Create a release: notarize, create DMG, sign for Sparkle, generate
 # appcast, and upload everything (DMG + appcast.xml) to a GitHub Release.
 #
-# Releases (DMG + appcast.xml) are published to a dedicated public repo
-# so the main source repo can stay private. The Sparkle feed in
-# ora/Info.plist points at:
-#   https://github.com/KristampsWong/ora/releases/latest/download/appcast.xml
+# Releases (DMG + appcast.xml) are published to the public open-source
+# repo ocai-labs/ora. The Sparkle feed in ora/Info.plist points at:
+#   https://github.com/ocai-labs/ora/releases/latest/download/appcast.xml
+#
+# (Up to v0.5.6 the feed and the DMG URLs pointed at KristampsWong/ora.
+# That repo name now belongs to an unrelated project, so copies of
+# v0.5.6 and earlier can't see updates and need one manual install.)
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,7 +25,7 @@ if [ -f "$PROJECT_DIR/scripts/dev-env.local.sh" ]; then
     source "$PROJECT_DIR/scripts/dev-env.local.sh"
 fi
 
-GITHUB_REPO="KristampsWong/ora"
+GITHUB_REPO="ocai-labs/ora"
 
 APP_PATH="$EXPORT_PATH/ora.app"
 APP_NAME="ora"
@@ -201,6 +204,7 @@ echo "=== Step 4: Signing for Sparkle ==="
 
 SPARKLE_SIGN=""
 POSSIBLE_PATHS=(
+    "${SPARKLE_BIN:-}"
     "$HOME/Library/Developer/Xcode/DerivedData/ora-*/SourcePackages/artifacts/sparkle/Sparkle/bin"
 )
 
@@ -219,14 +223,17 @@ if [ -z "$SPARKLE_SIGN" ]; then
     exit 1
 fi
 
-if [ ! -f "$KEYS_DIR/eddsa_private_key" ]; then
-    echo "ERROR: No Sparkle private key at $KEYS_DIR/eddsa_private_key"
-    echo "Run ./scripts/generate-keys.sh first."
-    exit 1
+# Key source: the exported file if present, otherwise the login
+# Keychain (where generate_keys stores it; sign_update reads it from
+# there by default). Using the Keychain avoids keeping the private key
+# on disk at all.
+if [ -f "$KEYS_DIR/eddsa_private_key" ]; then
+    echo "Signing DMG with Sparkle EdDSA key file..."
+    SIGN_OUTPUT=$("$SPARKLE_SIGN" --ed-key-file "$KEYS_DIR/eddsa_private_key" "$DMG_PATH")
+else
+    echo "Signing DMG with Sparkle EdDSA key from the Keychain..."
+    SIGN_OUTPUT=$("$SPARKLE_SIGN" "$DMG_PATH")
 fi
-
-echo "Signing DMG with Sparkle EdDSA key..."
-SIGN_OUTPUT=$("$SPARKLE_SIGN" --ed-key-file "$KEYS_DIR/eddsa_private_key" "$DMG_PATH")
 
 ED_SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
 DMG_LENGTH=$(echo "$SIGN_OUTPUT" | sed -n 's/.*length="\([^"]*\)".*/\1/p')

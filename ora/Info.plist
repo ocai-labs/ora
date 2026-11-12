@@ -13,7 +13,7 @@
          /releases/latest/download/ always redirects to the newest one, so
          no separate update server is required. -->
     <key>SUFeedURL</key>
-    <string>https://github.com/KristampsWong/ora/releases/latest/download/appcast.xml</string>
+    <string>https://github.com/ocai-labs/ora/releases/latest/download/appcast.xml</string>
 
     <!-- EdDSA public key for verifying update signatures.
          Generate with ./scripts/generate-keys.sh and paste the result here.

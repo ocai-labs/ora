@@ -9,6 +9,25 @@ Release notes for a given version are extracted from this file by
 `scripts/create-release.sh` and posted to the matching GitHub Release,
 so keep each version section self-contained and user-facing.
 
+## [0.6.0] - 2026-11-11
+
+### Added
+- **NVIDIA Nemotron Unified ASR 0.6B** local model (25 European
+  languages, live preview, punctuation built in). Its settings let you
+  pin the language — pick French and it transcribes French, instead of
+  auto-detecting and mixing in English words the way Parakeet v3 can.
+- Live preview now shows in its own bubble above the pill, with the
+  newest line right above the waveform.
+
+### Changed
+- New dictation pill: a compact 72×30 capsule with a livelier 6-bar
+  waveform and a spinner while transcribing. On macOS 26 and later the
+  pill and preview bubble use a dark frosted-glass surface.
+- Cancelling a dictation is now Esc only (the hover × is gone).
+- Updates now come from the ocai-labs/ora releases. If you're on 0.5.6
+  or earlier, install this version manually once; later versions update
+  automatically.
+
 ## [0.5.6] - 2026-06-20
 
 ### Fixed
