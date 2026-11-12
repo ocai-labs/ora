@@ -9,6 +9,14 @@ Release notes for a given version are extracted from this file by
 `scripts/create-release.sh` and posted to the matching GitHub Release,
 so keep each version section self-contained and user-facing.
 
+## [0.6.1] - 2026-11-11
+
+### Fixed
+- The live-preview bubble no longer jumps each time the transcript wraps
+  onto a new line — it now grows smoothly upward from the pill.
+- The Dictation Display preview in Settings → General no longer makes
+  the whole page jump down and back while its demo text scrolls.
+
 ## [0.6.0] - 2026-11-11
 
 ### Added
