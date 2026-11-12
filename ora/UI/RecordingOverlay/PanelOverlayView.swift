@@ -5,29 +5,26 @@
 //  Bottom-of-screen "panel" overlay style for dictation with live
 //  preview (spec §4 / §5.4). Two forms rendered by the same card:
 //
-//   - Full: fixed-width card, grows only DOWNWARD (Apple-style, per the
-//     "STT Overlay Apple.html" design). (1) Before the first partial the
-//     compact pill shows just the waveform. (2) The first partial expands
-//     the card ONCE to a centred, fixed width — a single gentle-overshoot
-//     motion — and from then on the width never changes, so there is zero
-//     left/right jitter as words stream in (the old symmetric centre-growth
-//     is gone). The text wraps at its final column from the first frame;
-//     the card clips, then reveals it as it grows. (3) Height: one line →
-//     one-line height; the moment the text wraps to a 2nd line the card
-//     JUMPS straight to the 3-line window height (no line-by-line growth),
-//     then text tail-scrolls inside that 3-line window. While it fits in
-//     ≤3 lines the text is TOP-aligned (line 1 at top, filling down); only
-//     once a 4th line arrives does it flip to BOTTOM-anchored and scroll
-//     up, the newest line pinned at the bottom and older lines hard-clipped
-//     out the top (no fade — removed at the user's request). The waveform
-//     stays vertically centred against the window. Text is full-replacement
-//     each update.
+//   - Full: fixed-width card, bottom-anchored, grows only UPWARD.
+//     (1) Before the first partial the compact pill shows just the
+//     waveform. (2) The first partial expands the card ONCE to a centred,
+//     fixed width — a single gentle-overshoot motion — and from then on
+//     the width never changes, so there is zero left/right jitter as
+//     words stream in. The text spans the full card width ABOVE the
+//     waveform, which stays centred in a bottom row at the height it had
+//     in the compact pill. The text wraps at its final column from the
+//     first frame; the card clips, then reveals it as it grows.
+//     (3) Height: the card grows one line at a time up to 3 lines, then
+//     the text tail-scrolls inside that 3-line window — the newest line
+//     pinned at the bottom (right above the waveform), older lines
+//     hard-clipped out the top (no fade). Text is full-replacement each
+//     update.
 //
 //     The text column width is FIXED (= maxTextWidth), so the card never
 //     re-wraps mid-stream and we no longer measure single-line ideal
-//     width. We still measure the partial's natural wrapped height (a
-//     GeometryReader twin) to decide 1-line vs 3-line-window, plus a tiny
-//     twin for the one-line height. The card height hugs the resulting
+//     width. We measure the partial's wrapped height twice (GeometryReader
+//     twins: uncapped, and capped at 3 lines) to size the window and to
+//     detect overflow past 3 lines. The card height hugs the resulting
 //     window so it (the visible text window) and the card grow on the
 //     SAME transaction — a freshly wrapped line is revealed only as the
 //     bar grows, never spilling outside it first.
@@ -67,13 +64,26 @@ struct PanelOverlayView: View {
     private static let maxLines: CGFloat = 3           // height cap: 3-line window
     private static let lineSpacing: CGFloat = 3        // matches partialLayer / height twin
     private static let compactHeight: CGFloat = 38     // same as the pill
-    private static let indicatorColumnWidth: CGFloat = 44
+
+    /// Height of the bottom indicator row in the expanded card — the
+    /// default WaveformView's max bar height, so the bars render at the
+    /// same size in both forms.
+    private static let indicatorRowHeight: CGFloat = 20
+
+    /// Expanded-card paddings. The bottom inset is chosen so the indicator
+    /// row's centre sits at compactHeight / 2 above the card's bottom edge
+    /// — exactly where the compact pill centres its waveform — so the
+    /// waveform doesn't hop when the pill expands (the card is
+    /// bottom-anchored, all growth goes upward above it).
+    private static let expandedTopPadding: CGFloat = 13
+    private static let expandedBottomPadding: CGFloat = (compactHeight - indicatorRowHeight) / 2
+    private static let textToIndicatorSpacing: CGFloat = 8
 
     /// Fixed width of the text column once expanded: the card width minus
-    /// horizontal padding (16×2), the indicator column, and the HStack
-    /// spacing. The text always wraps at this width, so the card width is
-    /// constant after the one-time expand.
-    private static let maxTextWidth: CGFloat = expandedWidth - 32 - indicatorColumnWidth - 12
+    /// horizontal padding (16×2). The text sits above the waveform row and
+    /// spans the full card, and it always wraps at this width, so the card
+    /// width is constant after the one-time expand.
+    private static let maxTextWidth: CGFloat = expandedWidth - 32
 
     private static let transcriptFont = Font.system(size: 13, weight: .medium, design: .rounded)
 
@@ -90,38 +100,16 @@ struct PanelOverlayView: View {
     /// and the overflow test derive from this, NOT from a Latin sample.
     @State private var cappedHeight: CGFloat = 0
 
-    /// Height of a single Latin line, measured once. Used ONLY for the
-    /// 1-line vs multiline trigger (robust: any real line, even a taller
-    /// CJK one, is < 1.5× a Latin line, and 2 lines are always > 1.5×) and
-    /// as the floor for the 2-line jump below.
-    @State private var oneLineHeight: CGFloat = 0
-
-    /// The text has wrapped past one line — the trigger to jump straight
-    /// to the 3-line window height.
-    private var multiline: Bool {
-        oneLineHeight > 0 && textNaturalHeight > oneLineHeight * 1.5
-    }
-
-    /// Synthesized 3-line height from the Latin one-line sample. Used only
-    /// as a FLOOR so that a 2-line partial (whose `cappedHeight` is still
-    /// only 2 lines) jumps to ~3-line height immediately; the empty 3rd
-    /// line means a small per-script inaccuracy here never clips anything.
-    /// Once the text actually reaches 3 lines, `cappedHeight` (real) takes
-    /// over via the `max` below.
-    private var threeLineFloor: CGFloat {
-        oneLineHeight * Self.maxLines + Self.lineSpacing * (Self.maxLines - 1)
-    }
-
-    /// Explicit window height. One real line until the text wraps, then
-    /// the 3-line window. Nil before the first measurement lands (one
+    /// Explicit window height: the real capped height, so the card grows
+    /// one line at a time (1 → 2 → 3 lines) and then tail-scrolls. With
+    /// the waveform row directly under the text, the old jump straight to
+    /// a 3-line window left an empty line as a visible gap between the
+    /// text and the waveform. Nil before the first measurement lands (one
     /// layout pass), letting the frame follow the proposal. Using the real
-    /// `cappedHeight` means a single CJK line (taller than Latin) gets its
-    /// true height and is never clipped at the bottom; `max(.., floor)`
-    /// only raises a still-short 2-line state up to the jump height.
+    /// `cappedHeight` means CJK / taller scripts get their true height.
     private var visibleTextHeight: CGFloat? {
-        guard textNaturalHeight > 0, oneLineHeight > 0, cappedHeight > 0 else { return nil }
-        guard multiline else { return cappedHeight }
-        return max(cappedHeight, threeLineFloor)
+        guard textNaturalHeight > 0, cappedHeight > 0 else { return nil }
+        return cappedHeight
     }
 
     /// True once the text genuinely exceeds the 3-line window — only then
@@ -245,44 +233,51 @@ struct PanelOverlayView: View {
     // MARK: - Card
 
     private var card: some View {
-        // The waveform stays vertically centred against the visible text
-        // window. The hosting frame is bottom-anchored, so when the card
-        // jumps to the 3-line height that added height extends upward and
-        // the centred wave rides up with it. Horizontally the card is a
-        // fixed expanded width (leading-aligned content), so the waveform
-        // sits at a stable left edge — the one-time expand is the only
-        // horizontal motion.
-        HStack(alignment: .center, spacing: 12) {
-            indicator
-                .frame(width: isExpanded ? Self.indicatorColumnWidth : nil)
-
+        // Text on top, waveform in a centred row underneath. ONE VStack in
+        // both forms — the compact pill is just the bottom row on its own —
+        // so the indicator keeps its identity across the expand (no
+        // container swap that would restart the bar springs / DotsView
+        // task). The hosting frame is bottom-anchored, so the waveform row
+        // stays put and every bit of height growth (the expand, the 3-line
+        // jump) extends upward above it.
+        VStack(alignment: .center, spacing: Self.textToIndicatorSpacing) {
             if isExpanded {
                 transcriptTail
                     .transition(.opacity)
             }
 
-            if showsCancelControl {
-                Button {
-                    onCancel?()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.85))
+            // In the compact pill the × sits inline next to the waveform,
+            // as before; in the expanded card it moves to the overlay
+            // below so it can't push the centred waveform sideways (and
+            // can't be pushed past the clipped right edge, which is what
+            // happened with the old fixed-width HStack).
+            HStack(spacing: 12) {
+                indicator
+                if showsCancelControl && !isExpanded {
+                    cancelButton
                 }
-                .buttonStyle(.plain)
-                .transition(.opacity)
             }
+            .frame(height: isExpanded ? Self.indicatorRowHeight : nil)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, isExpanded ? 13 : 0)
-        // Fixed expanded width (leading-aligned so the waveform pins to a
-        // stable left edge); the card clips its wider content and reveals
-        // it as the width animates out. Compact hugs the lone indicator.
+        .padding(.top, isExpanded ? Self.expandedTopPadding : 0)
+        .padding(.bottom, isExpanded ? Self.expandedBottomPadding : 0)
+        // Fixed expanded width, content bottom-centred; the card clips its
+        // content and reveals it as the width animates out. Compact hugs
+        // the lone indicator row.
         .frame(
             width: isExpanded ? Self.expandedWidth : nil,
             height: isExpanded ? nil : Self.compactHeight,
-            alignment: .leading
+            alignment: isExpanded ? .bottom : .center
         )
+        .overlay(alignment: .bottomTrailing) {
+            if showsCancelControl && isExpanded {
+                cancelButton
+                    .frame(height: Self.indicatorRowHeight)
+                    .padding(.trailing, 12)
+                    .padding(.bottom, Self.expandedBottomPadding)
+            }
+        }
         .background(Color.black)
         .clipShape(RoundedRectangle(
             cornerRadius: isExpanded ? 18 : Self.compactHeight / 2,
@@ -292,7 +287,7 @@ struct PanelOverlayView: View {
         // gentle-overshoot spring — the Apple "easeOutBack" feel. After
         // that the width never changes again.
         .animation(.spring(response: 0.42, dampingFraction: 0.72), value: isExpanded)
-        // The 3-line jump: keyed to the measured natural height (which the
+        // Line-by-line growth: keyed to the measured natural height (which the
         // height twin commits alongside the visible text), eased with no
         // overshoot so the bar settles cleanly into the new window. The
         // window height rides this same transaction, so a freshly wrapped
@@ -320,9 +315,22 @@ struct PanelOverlayView: View {
         }
     }
 
-    /// Left column: phase parity with the pill — waveform while
+    private var cancelButton: some View {
+        Button {
+            onCancel?()
+        } label: {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.85))
+        }
+        .buttonStyle(.plain)
+        .transition(.opacity)
+    }
+
+    /// Bottom row: phase parity with the pill — waveform while
     /// recording, dots while transcribing, error content otherwise.
-    /// Smaller waveform metrics in the expanded form.
+    /// Same waveform metrics in both forms, so the bars don't change
+    /// size (or swap views) when the pill expands.
     @ViewBuilder
     private var indicator: some View {
         switch state.phase {
@@ -342,27 +350,16 @@ struct PanelOverlayView: View {
             DotsView()
                 .transition(.opacity)
         case .recording, .done:
-            if isExpanded {
-                WaveformView(
-                    audioLevel: state.audioLevel,
-                    barWidth: 2.5,
-                    barSpacing: 2,
-                    minBarHeight: 2,
-                    maxBarHeight: 14
-                )
+            WaveformView(audioLevel: state.audioLevel)
                 .transition(.opacity)
-            } else {
-                WaveformView(audioLevel: state.audioLevel)
-                    .transition(.opacity)
-            }
         }
     }
 
     /// Tail-follow live text in a fixed-width column. The column width is
     /// constant (maxTextWidth), so the text wraps at its final width from
     /// the first frame and never re-wraps mid-stream. The window height
-    /// is one line until the text wraps, then jumps to the 3-line window;
-    /// while it fits in ≤3 lines it is top-aligned, and only once it
+    /// follows the text one line at a time up to 3 lines; while it fits
+    /// it is top-aligned, and only once it
     /// overflows does it bottom-anchor and scroll, older lines hard-clip
     /// out the top (`.clipped()`, no fade). No ScrollView — no re-scroll
     /// jumping at 1 Hz replacements; the Text content swaps instantly,
@@ -425,7 +422,7 @@ struct PanelOverlayView: View {
             alignment: textOverflows ? .bottomLeading : .topLeading
         )
         .clipped()
-        // Hidden measurement twins (one-line, uncapped, capped). Grouped
+        // Hidden measurement twins (uncapped, capped). Grouped
         // into one background so this modifier chain stays short enough
         // for the type-checker.
         .background(measurers)
@@ -454,7 +451,6 @@ struct PanelOverlayView: View {
             guard !metrics.text.isEmpty else { return }
             cappedHeight = metrics.value
         }
-        .onPreferenceChange(OneLineHeightKey.self) { oneLineHeight = $0 }
     }
 
     /// Hidden measurement twins, grouped so they never affect layout and
@@ -462,28 +458,10 @@ struct PanelOverlayView: View {
     /// `.hidden()` also keeps them out of accessibility.
     private var measurers: some View {
         ZStack {
-            oneLineTwin
             naturalHeightTwin
             cappedHeightTwin
         }
         .hidden()
-    }
-
-    /// Single Latin line — the one-line reference (multiline trigger +
-    /// 2-line jump floor only; never a real window height).
-    private var oneLineTwin: some View {
-        Text("Ag")
-            .font(Self.transcriptFont)
-            .lineSpacing(Self.lineSpacing)
-            .fixedSize()
-            .background(
-                GeometryReader { proxy in
-                    Color.clear.preference(
-                        key: OneLineHeightKey.self,
-                        value: proxy.size.height
-                    )
-                }
-            )
     }
 
     /// The partial wrapped at the column width, UNCAPPED → natural height
@@ -585,16 +563,5 @@ private struct TranscriptCappedHeightKey: PreferenceKey {
     static func reduce(value: inout TranscriptMetrics, nextValue: () -> TranscriptMetrics) {
         let next = nextValue()
         if !next.text.isEmpty { value = next }
-    }
-}
-
-/// Carries the one-line height out of the hidden single-line twin.
-/// Reduce keeps the largest non-zero contribution so sibling subtrees
-/// that never set the key (defaultValue 0) can't clobber the real
-/// measurement.
-private struct OneLineHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
     }
 }
