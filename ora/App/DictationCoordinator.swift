@@ -184,6 +184,7 @@ final class DictationCoordinator {
             localTranscribers: [
                 "parakeet-v3": FluidAudioTranscriber(downloader: fluidDownloader),
                 "parakeet-v2": FluidAudioTranscriber(modelId: "parakeet-v2", downloader: fluidDownloader),
+                NemotronUnifiedTranscriber.modelId: NemotronUnifiedTranscriber(downloader: fluidDownloader, preferences: .shared),
                 "qwen3-asr-0.6b": MLXTranscriber(modelId: "qwen3-asr-0.6b", downloader: mlxDownloader),
                 "qwen3-asr-1.7b": MLXTranscriber(modelId: "qwen3-asr-1.7b", downloader: mlxDownloader),
                 "whisper-large-v3-turbo": WhisperKitTranscriber(modelId: "whisper-large-v3-turbo", downloader: whisperKitDownloader),
@@ -254,6 +255,14 @@ final class DictationCoordinator {
     /// process lifetime.
     func wirePrewarmOnModelSelect() {
         preferences.onSelectedModelChanged = { [weak self] _ in
+            self?.schedulePrewarmOnSelect()
+        }
+        // The Nemotron language is baked into the loaded encoder, so a
+        // change means a reload — warm it now (same debounce: flicking
+        // through the picker only reloads for the language settled on)
+        // instead of on the next dictation. A no-op unless Nemotron is
+        // the selected model.
+        preferences.onNemotronUnifiedLanguageChanged = { [weak self] in
             self?.schedulePrewarmOnSelect()
         }
     }

@@ -53,6 +53,9 @@ final class ModelManager {
         let parakeetV3Status: ModelEntry.Status =
             fluidDownloader.isInstalled("parakeet-v3") ? .downloaded : .notDownloaded
 
+        let nemotronUnifiedStatus: ModelEntry.Status =
+            fluidDownloader.isInstalled(NemotronUnifiedTranscriber.modelId) ? .downloaded : .notDownloaded
+
         let parakeetV2Status: ModelEntry.Status =
             fluidDownloader.isInstalled("parakeet-v2") ? .downloaded : .notDownloaded
 
@@ -87,6 +90,19 @@ final class ModelManager {
                 isLocal: true,
                 isOnline: false,
                 status: parakeetV3Status
+            ),
+            ModelEntry(
+                id: NemotronUnifiedTranscriber.modelId,
+                name: "Nvidia Nemotron Unified ASR 0.6B",
+                description: "NVIDIA's newest multilingual FastConformer (25 European languages) with live preview. You can pin the language, so French stays French. Punctuation built in.",
+                badge: nil,
+                accuracy: 5,
+                speed: 5,
+                size: "1.2 GB",
+                language: "25 languages",
+                isLocal: true,
+                isOnline: false,
+                status: nemotronUnifiedStatus
             ),
             ModelEntry(
                 id: "parakeet-v2",

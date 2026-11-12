@@ -89,6 +89,7 @@ final class Preferences {
         static let notificationSoundName = "ora.notificationSoundName"
         static let selectedInputDeviceUID = "ora.selectedInputDeviceUID"
         static let overlayStyle = "ora.overlayStyle"
+        static let nemotronUnifiedLanguage = "ora.nemotronUnifiedLanguage"
     }
 
     private let defaults: UserDefaults
@@ -144,6 +145,23 @@ final class Preferences {
 
     var overlayStyle: OverlayStyle {
         didSet { defaults.set(overlayStyle.rawValue, forKey: Key.overlayStyle) }
+    }
+
+    /// Fired when `nemotronUnifiedLanguage` changes. DictationCoordinator
+    /// uses it to re-warm the model: the language is baked into the
+    /// loaded Nemotron encoder, so a change means a reload.
+    @ObservationIgnored
+    var onNemotronUnifiedLanguageChanged: (() -> Void)?
+
+    /// Language code the Nemotron Unified model is told to transcribe
+    /// ("auto" or one of its 25 ISO 639-1 codes, e.g. "fr"). Forcing the
+    /// language is what stops a French speaker getting English words —
+    /// see NemotronUnifiedTranscriber.
+    var nemotronUnifiedLanguage: String {
+        didSet {
+            defaults.set(nemotronUnifiedLanguage, forKey: Key.nemotronUnifiedLanguage)
+            if nemotronUnifiedLanguage != oldValue { onNemotronUnifiedLanguageChanged?() }
+        }
     }
 
     var notificationSoundEnabled: Bool {
@@ -203,5 +221,6 @@ final class Preferences {
         self.notificationSoundEnabled = (defaults.object(forKey: Key.notificationSoundEnabled) as? Bool) ?? true
         self.notificationSoundName = defaults.string(forKey: Key.notificationSoundName) ?? "Pop"
         self.selectedInputDeviceUID = defaults.string(forKey: Key.selectedInputDeviceUID)
+        self.nemotronUnifiedLanguage = defaults.string(forKey: Key.nemotronUnifiedLanguage) ?? "auto"
     }
 }

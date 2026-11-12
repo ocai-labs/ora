@@ -13,6 +13,7 @@ struct LocalModelSettingsSheet: View {
     var onRemoved: () -> Void = {}
 
     @Environment(ModelManager.self) private var modelManager
+    @Bindable private var preferences = Preferences.shared
     @Environment(\.dismiss) private var dismiss
     @State private var removeConfirmPresented = false
 
@@ -180,7 +181,11 @@ struct LocalModelSettingsSheet: View {
     private var infoGrid: some View {
         VStack(alignment: .leading, spacing: 8) {
             infoRow(icon: "internaldrive", label: "Size", value: model.size)
-            infoRow(icon: "globe", label: "Language", value: model.language)
+            if model.id == NemotronUnifiedTranscriber.modelId {
+                languagePickerRow
+            } else {
+                infoRow(icon: "globe", label: "Language", value: model.language)
+            }
             infoRow(icon: "bolt.fill", label: "Speed", value: speedLabel)
             infoRow(icon: "scope", label: "Accuracy", value: accuracyLabel)
         }
@@ -200,6 +205,44 @@ struct LocalModelSettingsSheet: View {
                 .font(.system(size: 12))
         }
     }
+
+    /// Nemotron Unified takes the language as an input, so its sheet
+    /// gets a picker instead of the read-only row. Pinning it is what
+    /// keeps, e.g., French speech from coming out with English words.
+    private var languagePickerRow: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "globe")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .frame(width: 16, alignment: .center)
+            Text("Language")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 70, alignment: .leading)
+            Picker("Language", selection: $preferences.nemotronUnifiedLanguage) {
+                Text("Auto-detect").tag("auto")
+                Divider()
+                ForEach(Self.nemotronLanguageOptions, id: \.code) { option in
+                    Text(option.name).tag(option.code)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .controlSize(.small)
+            .fixedSize()
+        }
+    }
+
+    /// The model's 25 languages, named in the user's own locale and
+    /// sorted by that name.
+    private static let nemotronLanguageOptions: [(code: String, name: String)] =
+        NemotronUnifiedTranscriber.languageCodes
+            .map { code in
+                let name = Locale.current.localizedString(forLanguageCode: code)?
+                    .localizedCapitalized ?? code
+                return (code, name)
+            }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
 
     private var speedLabel: String {
         switch model.speed {

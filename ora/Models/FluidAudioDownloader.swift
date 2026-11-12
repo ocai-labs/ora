@@ -58,7 +58,9 @@ struct FluidAudioDownloader {
     }
 
     /// Maps catalog ids to FluidAudio model versions. Adding a new local
-    /// model means adding a row here and a catalog entry in `ModelManager`.
+    /// Parakeet-family model means adding a row here and a catalog entry
+    /// in `ModelManager`. (Nemotron Unified is not an `AsrModelVersion`;
+    /// it has its own path below.)
     private static let versionsById: [String: AsrModelVersion] = [
         "parakeet-v2": .v2,
         "parakeet-v3": .v3
@@ -87,16 +89,112 @@ struct FluidAudioDownloader {
         }
         return v
     }
+
+    // MARK: Nemotron Unified
+
+    /// Nemotron Unified isn't an `AsrModelVersion` (it's FluidAudio's
+    /// separate Unified/RNNT backend), so it gets its own small path:
+    /// `ModelHub` for the download, and a file check of our own for
+    /// "installed". See NemotronUnifiedTranscriber for why fp16.
+    static let nemotronUnifiedPrecision: UnifiedEncoderPrecision = .fp16
+
+    /// Raw download for the offline fp16 set, from the HF tree listing
+    /// (2026-11-11): encoder 1196.6 MB + decoder 18.4 MB + joint 7.4 MB
+    /// + vocab/metadata ≈ 1222 MB.
+    private static let nemotronUnifiedTotalBytes: Int64 = 1222 * 1000 * 1000
+
+    /// ~/Library/Application Support/FluidAudio/Models — the same base
+    /// `UnifiedAsrManager.loadModels()` uses, so a model fetched by any
+    /// FluidAudio-based tool is found here too.
+    static var fluidAudioModelsDirectory: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("FluidAudio", isDirectory: true)
+            .appendingPathComponent("Models", isDirectory: true)
+    }
+
+    static var nemotronUnifiedCacheDirectory: URL {
+        fluidAudioModelsDirectory.appendingPathComponent(Repo.nemotronUnified.folderName, isDirectory: true)
+    }
+
+    /// The files `UnifiedAsrManager.loadModels(from:)` opens for the
+    /// offline path.
+    private static var nemotronUnifiedRequiredFiles: [String] {
+        let family = UnifiedModelFamily.nemotronMultilingual(.auto)
+        return [
+            family.offlineEncoderFile(precision: nemotronUnifiedPrecision),
+            family.decoderFile,
+            family.jointDecisionFile,
+            family.vocab,
+        ]
+    }
+
+    /// Complete = every required file is present and, for each compiled
+    /// bundle, load-ready (see `bundleIsComplete`). Mirrors FluidAudio's
+    /// own `ModelCache.incompleteFiles`, which is internal to the SDK.
+    /// Bare directory existence — or even a root `coremldata.bin` —
+    /// isn't enough: FluidAudio downloads a bundle file by file, so an
+    /// interrupted 1.2 GB fetch can leave `coremldata.bin` in place
+    /// with the program or weights still missing, and the card would
+    /// then claim "Downloaded" for a model that can't load.
+    private static func nemotronUnifiedFilesComplete() -> Bool {
+        let dir = nemotronUnifiedCacheDirectory
+        return nemotronUnifiedRequiredFiles.allSatisfy { name in
+            let url = dir.appendingPathComponent(name)
+            return name.hasSuffix(".mlmodelc")
+                ? bundleIsComplete(url)
+                : FileManager.default.fileExists(atPath: url.path)
+        }
+    }
+
+    /// A compiled ML-program bundle is load-ready when it has its root
+    /// `coremldata.bin`, a `model.mil` that ends with the brace closing
+    /// the program (a truncated one segfaults Core ML), every
+    /// `@model_path/…` file the program references (the weights) present
+    /// and non-empty, and no `*.partial` staging file left inside it.
+    /// Only the bundle itself is scanned for `.partial`, so stray files
+    /// elsewhere in the shared FluidAudio cache can't wedge the model.
+    private static func bundleIsComplete(_ bundle: URL) -> Bool {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: bundle.appendingPathComponent("coremldata.bin").path),
+              let mil = fm.contents(atPath: bundle.appendingPathComponent("model.mil").path)
+        else { return false }
+
+        let whitespace: Set<UInt8> = [0x09, 0x0A, 0x0D, 0x20]
+        guard let last = mil.lastIndex(where: { !whitespace.contains($0) }),
+              mil[last] == UInt8(ascii: "}")
+        else { return false }
+
+        let marker = Data("@model_path/".utf8)
+        var searchStart = mil.startIndex
+        while let match = mil.range(of: marker, in: searchStart..<mil.endIndex) {
+            guard let end = mil[match.upperBound...].firstIndex(of: UInt8(ascii: "\"")) else { break }
+            if let reference = String(data: mil[match.upperBound..<end], encoding: .utf8), !reference.isEmpty {
+                let path = bundle.appendingPathComponent(reference).path
+                let size = (try? fm.attributesOfItem(atPath: path))?[.size] as? Int ?? 0
+                guard size > 0 else { return false }
+            }
+            searchStart = end
+        }
+
+        if let walker = fm.enumerator(at: bundle, includingPropertiesForKeys: nil) {
+            for case let url as URL in walker where url.pathExtension == "partial" {
+                return false
+            }
+        }
+        return true
+    }
 }
 
 extension FluidAudioDownloader {
     func isInstalled(_ id: String) -> Bool {
+        if id == NemotronUnifiedTranscriber.modelId { return Self.nemotronUnifiedFilesComplete() }
         guard let v = try? version(for: id) else { return false }
         let dir = AsrModels.defaultCacheDirectory(for: v)
         return AsrModels.modelsExist(at: dir, version: v)
     }
 
     func cacheDirectory(_ id: String) -> URL? {
+        if id == NemotronUnifiedTranscriber.modelId { return Self.nemotronUnifiedCacheDirectory }
         guard let v = try? version(for: id) else { return nil }
         return AsrModels.defaultCacheDirectory(for: v)
     }
@@ -114,9 +212,10 @@ extension FluidAudioDownloader {
         _ id: String,
         onProgress: @escaping @MainActor @Sendable (ModelEntry.Status) -> Void
     ) async throws {
-        let v = try version(for: id)
-        let cacheDir = AsrModels.defaultCacheDirectory(for: v)
-        let totalBytes = Self.totalBytesById[id] ?? 0
+        let isNemotron = id == NemotronUnifiedTranscriber.modelId
+        let v: AsrModelVersion? = isNemotron ? nil : try version(for: id)
+        let cacheDir = v.map { AsrModels.defaultCacheDirectory(for: $0) } ?? Self.nemotronUnifiedCacheDirectory
+        let totalBytes = isNemotron ? Self.nemotronUnifiedTotalBytes : (Self.totalBytesById[id] ?? 0)
 
         // Disk poller. Runs in parallel with `AsrModels.download` and is the
         // sole source of `.downloading(eta:)` updates. Cancelled either when
@@ -166,31 +265,66 @@ extension FluidAudioDownloader {
         }
         defer { pollTask.cancel() }
 
+        // Phase signal only — `progress.fractionCompleted` is not
+        // trustworthy for display under the pinned SDK (see file
+        // header). The disk poller is the sole source of byte
+        // progress; here we just need to know when downloading
+        // finishes so we can flip to .extracting and stop polling.
+        let progressHandler: ProgressHandler = { progress in
+            guard case .compiling = progress.phase else { return }
+            pollTask.cancel()
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { onProgress(.extracting) }
+            }
+        }
+
         do {
-            _ = try await AsrModels.download(version: v, progressHandler: { progress in
-                // Phase signal only — `progress.fractionCompleted` is not
-                // trustworthy for display under the pinned SDK (see file
-                // header). The disk poller is the sole source of byte
-                // progress; here we just need to know when downloading
-                // finishes so we can flip to .extracting and stop polling.
-                guard case .compiling = progress.phase else { return }
-                pollTask.cancel()
-                DispatchQueue.main.async {
-                    MainActor.assumeIsolated { onProgress(.extracting) }
-                }
-            })
-        } catch is CancellationError {
-            // Re-throw as-is so the caller sees CancellationError rather than
-            // a Failure.underlying wrapper — ModelManager relies on this to
-            // transition to .paused instead of .error.
-            throw CancellationError()
+            if let v {
+                _ = try await AsrModels.download(version: v, progressHandler: progressHandler)
+            } else {
+                // The Nemotron repo ships pre-compiled .mlmodelc bundles,
+                // so there's normally no compile phase: the poller simply
+                // runs until the download returns. "offline-fp16" limits
+                // the fetch to the batch encoder + decoder + joint + vocab
+                // (the repo also holds ~10 GB of streaming / int8 /
+                // .mlpackage variants we don't want).
+                try await ModelHub.download(
+                    .nemotronUnified,
+                    to: Self.fluidAudioModelsDirectory,
+                    variant: "offline-fp16",
+                    progressHandler: progressHandler)
+            }
         } catch {
+            // Any cancellation — our CancellationError, or the URLError
+            // .cancelled / NSUserCancelledError FluidAudio's downloader
+            // surfaces when the Pause button cancels the URLSession task
+            // mid-transfer — re-throws as CancellationError so
+            // ModelManager shows .paused instead of an error.
+            if Task.isCancelled || Self.isCancellation(error) {
+                throw CancellationError()
+            }
             throw Failure.underlying(error)
         }
 
-        guard AsrModels.modelsExist(at: cacheDir, version: v) else {
+        let complete = v.map { AsrModels.modelsExist(at: cacheDir, version: $0) }
+            ?? Self.nemotronUnifiedFilesComplete()
+        guard complete else {
             throw Failure.downloadIncomplete
         }
+    }
+
+    /// Same rule as FluidAudio's (internal) `RetryPolicy.isCancellation`:
+    /// walk the NSError chain looking for a URL or user cancellation.
+    private static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        var current: NSError? = error as NSError
+        var visited: Set<ObjectIdentifier> = []
+        while let nsError = current, visited.insert(ObjectIdentifier(nsError)).inserted {
+            if nsError.domain == NSURLErrorDomain, nsError.code == NSURLErrorCancelled { return true }
+            if nsError.domain == NSCocoaErrorDomain, nsError.code == NSUserCancelledError { return true }
+            current = nsError.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        return false
     }
 
     /// Sum of bytes that count toward the download:

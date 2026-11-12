@@ -22,14 +22,17 @@ struct ModelEntry: Identifiable, Equatable {
     var status: Status
 
     /// Whether this model is fast enough for the live-preview loop
-    /// (periodic full-buffer re-transcription, spec §5.0). v1: Parakeet
-    /// only — measured 0.13–0.56 s per round on ANE. Other local
+    /// (periodic full-buffer re-transcription, spec §5.0). Parakeet —
+    /// measured 0.13–0.56 s per round on ANE — and Nemotron Unified, the
+    /// same 0.6B FastConformer class on the ANE (FluidAudio measures its
+    /// 15 s offline encoder pass at ~15–26 ms on M5 Pro; not yet
+    /// measured inside Ora's preview loop). Other local
     /// backends flip to true once their per-round latency is validated
     /// (spec Phase 3); cloud models stay false (would re-upload the
     /// whole buffer every second).
     var supportsLivePreview: Bool {
         switch id {
-        case "parakeet-v2", "parakeet-v3": true
+        case "parakeet-v2", "parakeet-v3", NemotronUnifiedTranscriber.modelId: true
         default: false
         }
     }
@@ -38,7 +41,7 @@ struct ModelEntry: Identifiable, Equatable {
     /// `nil` falls back to the card's generic SF Symbol.
     var brandIconAsset: String? {
         switch id {
-        case "parakeet-v2", "parakeet-v3": "BrandNvidia"
+        case "parakeet-v2", "parakeet-v3", NemotronUnifiedTranscriber.modelId: "BrandNvidia"
         case "openai-api": "BrandOpenAI"
         case "groq-api": "BrandGroq"
         case "qwen3-asr-0.6b", "qwen3-asr-1.7b": "BrandQwen"
