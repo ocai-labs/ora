@@ -183,6 +183,20 @@ struct PanelOverlayView: View {
         .animation(.spring(response: 0.34, dampingFraction: 0.78), value: showsBubble)
         .padding(.bottom, Self.bottomInset)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        // Line-by-line growth, keyed to the measured heights (committed
+        // alongside the visible text), eased with no overshoot.
+        // cappedHeight drives growth; textNaturalHeight covers the
+        // bottom-anchor flip once the text overflows 3 lines.
+        //
+        // These MUST sit outside the bottom-aligned frame above, not on
+        // the bubble: the bubble's position comes from this bottom-aligned
+        // stack. With the animation on the bubble only its size animated
+        // while its position snapped to the final value, so on every new
+        // line the whole bubble jumped up a full line and then slid its
+        // bottom back down onto the pill (measured frame by frame: top
+        // -38 px in one frame, bottom recovering over ~0.25 s).
+        .animation(.smooth(duration: 0.32), value: cappedHeight)
+        .animation(.smooth(duration: 0.32), value: textNaturalHeight)
         // Fresh dictation (coordinator clears the partial on
         // `.starting`): drop the previous sentence's measurements so the
         // next bubble starts from scratch instead of animating down from
@@ -220,12 +234,6 @@ struct PanelOverlayView: View {
             .padding(.vertical, Self.bubbleVerticalPadding)
             .frame(width: Self.bubbleWidth)
             .oraOverlaySurface(shape)
-            // The text window grows line by line, keyed to the measured
-            // heights (committed alongside the visible text), eased with
-            // no overshoot. cappedHeight drives growth; textNaturalHeight
-            // covers the bottom-anchor flip once it overflows 3 lines.
-            .animation(.smooth(duration: 0.32), value: cappedHeight)
-            .animation(.smooth(duration: 0.32), value: textNaturalHeight)
     }
 
     /// Tail-follow live text in a fixed-width column. The column width is
@@ -303,7 +311,7 @@ struct PanelOverlayView: View {
         // measured natural height land in ONE transaction (one layout
         // pass after the partial arrives). Plain writes, deliberately NOT
         // withAnimation — the crossfade rides on the transition / the
-        // explicit ghostOpacity animation; the bubble-level
+        // explicit ghostOpacity animation; the body-level
         // .animation(value: textNaturalHeight/cappedHeight) carries the
         // window growth.
         .onPreferenceChange(TranscriptHeightKey.self) { metrics in

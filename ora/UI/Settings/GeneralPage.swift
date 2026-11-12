@@ -184,6 +184,14 @@ private struct DictationDisplayDemo: View {
                     .scaledToFill()
             )
             .clipShape(RoundedRectangle(cornerRadius: 10))
+            // Don't let the overlay's text baselines escape into the Form.
+            // Form rows align on text baselines, and alignment guides pass
+            // straight through fixed frames and scaleEffect: once the demo
+            // transcript tail-scrolls, its first (clipped) line sits above
+            // the canvas and the row grew by ~15 pt to make room — the whole
+            // General page jumped down, then back when the demo looped.
+            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.top] }
+            .alignmentGuide(.lastTextBaseline) { $0[VerticalAlignment.bottom] }
             .task(id: taskKey) { await runDemo() }
     }
 
