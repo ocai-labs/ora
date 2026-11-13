@@ -4,8 +4,7 @@
 //
 //  Convenience for pulling a flat [Float] out of a mono PCM buffer.
 //  Replaces the identical extractFloats(from:) that was duplicated
-//  across FluidAudioTranscriber, WhisperKitTranscriber, and
-//  MLXTranscriber.
+//  across the FluidAudio transcribers and MLXTranscriber.
 //
 
 import AVFoundation

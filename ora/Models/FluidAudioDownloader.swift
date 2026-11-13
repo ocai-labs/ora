@@ -90,6 +90,63 @@ struct FluidAudioDownloader {
         return v
     }
 
+    // MARK: SenseVoice
+
+    /// int8 encoder: ~half the fp16 download, accuracy-neutral per
+    /// FluidAudio, ANE-resident. See SenseVoiceTranscriber.
+    static let senseVoicePrecision: SenseVoiceEncoderPrecision = .int8
+
+    /// Raw download from the HF tree listing (2026-11-12): int8 encoder
+    /// 236.5 MB + preprocessor 3.0 MB + vocab 0.4 MB ≈ 240 MB.
+    private static let senseVoiceTotalBytes: Int64 = 240 * 1000 * 1000
+
+    static var senseVoiceCacheDirectory: URL {
+        fluidAudioModelsDirectory.appendingPathComponent(Repo.senseVoiceSmall.folderName, isDirectory: true)
+    }
+
+    // MARK: Nemotron 3.5 Streaming
+
+    /// Full-vocab build (covers zh/ja/ko) at the 1120 ms chunk tier.
+    /// See NemotronStreamingTranscriber.
+    static let nemotronStreamingLanguageDirectory = "multilingual"
+    static let nemotronStreamingChunkMs = 1120
+
+    /// Raw download from the HF tree listing (2026-11-12) for
+    /// `multilingual/1120ms` with `encoder_v2` in place of the tier's own
+    /// encoder: encoder_v2 565.7 MB + decoder_joint 48.8 MB + decoder
+    /// 29.9 MB + joint 18.9 MB + preprocessor/tokenizer ≈ 665 MB.
+    private static let nemotronStreamingTotalBytes: Int64 = 665 * 1000 * 1000
+
+    /// The repo folder; everything Ora downloads for this model lives
+    /// under it, so removing the model removes this.
+    static var nemotronStreamingCacheDirectory: URL {
+        fluidAudioModelsDirectory.appendingPathComponent(Repo.nemotronMultilingual.folderName, isDirectory: true)
+    }
+
+    /// `<repo>/multilingual/1120ms`, the directory `loadModels(from:)` takes.
+    static var nemotronStreamingVariantDirectory: URL {
+        nemotronStreamingCacheDirectory
+            .appendingPathComponent(nemotronStreamingLanguageDirectory, isDirectory: true)
+            .appendingPathComponent("\(nemotronStreamingChunkMs)ms", isDirectory: true)
+    }
+
+    /// Complete = metadata + tokenizer present and the encoder (v2 or
+    /// the tier's own), decoder and joint bundles load-ready.
+    private static func nemotronStreamingFilesComplete() -> Bool {
+        let dir = nemotronStreamingVariantDirectory
+        let fm = FileManager.default
+        let names = ModelNames.NemotronMultilingualStreaming.self
+        guard fm.fileExists(atPath: dir.appendingPathComponent(names.metadata).path),
+              fm.fileExists(atPath: dir.appendingPathComponent(names.tokenizer).path)
+        else { return false }
+        let encoderReady = [names.encoderV2File, names.encoderFile].contains {
+            bundleIsComplete(dir.appendingPathComponent($0))
+        }
+        return encoderReady
+            && bundleIsComplete(dir.appendingPathComponent(names.decoderFile))
+            && bundleIsComplete(dir.appendingPathComponent(names.jointFile))
+    }
+
     // MARK: Nemotron Unified
 
     /// Nemotron Unified isn't an `AsrModelVersion` (it's FluidAudio's
@@ -188,6 +245,10 @@ struct FluidAudioDownloader {
 extension FluidAudioDownloader {
     func isInstalled(_ id: String) -> Bool {
         if id == NemotronUnifiedTranscriber.modelId { return Self.nemotronUnifiedFilesComplete() }
+        if id == NemotronStreamingTranscriber.modelId { return Self.nemotronStreamingFilesComplete() }
+        if id == SenseVoiceTranscriber.modelId {
+            return SenseVoiceModels.modelsExist(at: Self.senseVoiceCacheDirectory, precision: Self.senseVoicePrecision)
+        }
         guard let v = try? version(for: id) else { return false }
         let dir = AsrModels.defaultCacheDirectory(for: v)
         return AsrModels.modelsExist(at: dir, version: v)
@@ -195,6 +256,8 @@ extension FluidAudioDownloader {
 
     func cacheDirectory(_ id: String) -> URL? {
         if id == NemotronUnifiedTranscriber.modelId { return Self.nemotronUnifiedCacheDirectory }
+        if id == NemotronStreamingTranscriber.modelId { return Self.nemotronStreamingCacheDirectory }
+        if id == SenseVoiceTranscriber.modelId { return Self.senseVoiceCacheDirectory }
         guard let v = try? version(for: id) else { return nil }
         return AsrModels.defaultCacheDirectory(for: v)
     }
@@ -212,10 +275,31 @@ extension FluidAudioDownloader {
         _ id: String,
         onProgress: @escaping @MainActor @Sendable (ModelEntry.Status) -> Void
     ) async throws {
-        let isNemotron = id == NemotronUnifiedTranscriber.modelId
-        let v: AsrModelVersion? = isNemotron ? nil : try version(for: id)
-        let cacheDir = v.map { AsrModels.defaultCacheDirectory(for: $0) } ?? Self.nemotronUnifiedCacheDirectory
-        let totalBytes = isNemotron ? Self.nemotronUnifiedTotalBytes : (Self.totalBytesById[id] ?? 0)
+        // Non-Parakeet FluidAudio models each have their own download
+        // path; Parakeet goes through `AsrModels` by version.
+        enum Kind { case parakeet(AsrModelVersion), nemotronUnified, nemotronStreaming, senseVoice }
+        let kind: Kind
+        let cacheDir: URL
+        let totalBytes: Int64
+        switch id {
+        case NemotronUnifiedTranscriber.modelId:
+            kind = .nemotronUnified
+            cacheDir = Self.nemotronUnifiedCacheDirectory
+            totalBytes = Self.nemotronUnifiedTotalBytes
+        case NemotronStreamingTranscriber.modelId:
+            kind = .nemotronStreaming
+            cacheDir = Self.nemotronStreamingCacheDirectory
+            totalBytes = Self.nemotronStreamingTotalBytes
+        case SenseVoiceTranscriber.modelId:
+            kind = .senseVoice
+            cacheDir = Self.senseVoiceCacheDirectory
+            totalBytes = Self.senseVoiceTotalBytes
+        default:
+            let v = try version(for: id)
+            kind = .parakeet(v)
+            cacheDir = AsrModels.defaultCacheDirectory(for: v)
+            totalBytes = Self.totalBytesById[id] ?? 0
+        }
 
         // Disk poller. Runs in parallel with `AsrModels.download` and is the
         // sole source of `.downloading(eta:)` updates. Cancelled either when
@@ -279,9 +363,22 @@ extension FluidAudioDownloader {
         }
 
         do {
-            if let v {
+            switch kind {
+            case .parakeet(let v):
                 _ = try await AsrModels.download(version: v, progressHandler: progressHandler)
-            } else {
+            case .nemotronStreaming:
+                // Fetches `multilingual/1120ms` (.mlmodelc only) plus
+                // `encoder_v2` in place of the tier's own encoder.
+                _ = try await StreamingNemotronMultilingualAsrManager.downloadVariant(
+                    languageCode: "auto",
+                    chunkMs: Self.nemotronStreamingChunkMs,
+                    to: Self.fluidAudioModelsDirectory,
+                    progressHandler: progressHandler)
+            case .senseVoice:
+                _ = try await SenseVoiceModels.download(
+                    precision: Self.senseVoicePrecision,
+                    progressHandler: progressHandler)
+            case .nemotronUnified:
                 // The Nemotron repo ships pre-compiled .mlmodelc bundles,
                 // so there's normally no compile phase: the poller simply
                 // runs until the download returns. "offline-fp16" limits
@@ -306,8 +403,10 @@ extension FluidAudioDownloader {
             throw Failure.underlying(error)
         }
 
-        let complete = v.map { AsrModels.modelsExist(at: cacheDir, version: $0) }
-            ?? Self.nemotronUnifiedFilesComplete()
+        let complete: Bool = switch kind {
+        case .parakeet(let v): AsrModels.modelsExist(at: cacheDir, version: v)
+        default: isInstalled(id)
+        }
         guard complete else {
             throw Failure.downloadIncomplete
         }

@@ -19,7 +19,6 @@ final class ModelManager {
 
     private let fluidDownloader: FluidAudioDownloader
     private let mlxDownloader: MLXModelDownloader
-    private let whisperKitDownloader: WhisperKitModelDownloader
     private var tasks: [String: Task<Void, Never>] = [:]
 
     /// Fired after a download transitions to `.downloaded`. Used by
@@ -32,14 +31,11 @@ final class ModelManager {
     init() {
         let fluidDownloader = FluidAudioDownloader()
         let mlxDownloader = MLXModelDownloader()
-        let whisperKitDownloader = WhisperKitModelDownloader()
         self.fluidDownloader = fluidDownloader
         self.mlxDownloader = mlxDownloader
-        self.whisperKitDownloader = whisperKitDownloader
         self.catalog = Self.initialCatalog(
             fluidDownloader: fluidDownloader,
-            mlxDownloader: mlxDownloader,
-            whisperKitDownloader: whisperKitDownloader
+            mlxDownloader: mlxDownloader
         )
     }
 
@@ -47,14 +43,19 @@ final class ModelManager {
 
     private static func initialCatalog(
         fluidDownloader: FluidAudioDownloader,
-        mlxDownloader: MLXModelDownloader,
-        whisperKitDownloader: WhisperKitModelDownloader
+        mlxDownloader: MLXModelDownloader
     ) -> [ModelEntry] {
         let parakeetV3Status: ModelEntry.Status =
             fluidDownloader.isInstalled("parakeet-v3") ? .downloaded : .notDownloaded
 
         let nemotronUnifiedStatus: ModelEntry.Status =
             fluidDownloader.isInstalled(NemotronUnifiedTranscriber.modelId) ? .downloaded : .notDownloaded
+
+        let nemotronStreamingStatus: ModelEntry.Status =
+            fluidDownloader.isInstalled(NemotronStreamingTranscriber.modelId) ? .downloaded : .notDownloaded
+
+        let senseVoiceStatus: ModelEntry.Status =
+            fluidDownloader.isInstalled(SenseVoiceTranscriber.modelId) ? .downloaded : .notDownloaded
 
         let parakeetV2Status: ModelEntry.Status =
             fluidDownloader.isInstalled("parakeet-v2") ? .downloaded : .notDownloaded
@@ -64,18 +65,6 @@ final class ModelManager {
 
         let qwen17bStatus: ModelEntry.Status =
             mlxDownloader.isInstalled("qwen3-asr-1.7b") ? .downloaded : .notDownloaded
-
-        let whisperLargeV3TurboStatus: ModelEntry.Status =
-            whisperKitDownloader.isInstalled("whisper-large-v3-turbo") ? .downloaded : .notDownloaded
-
-        let whisperDistilLargeV3Status: ModelEntry.Status =
-            whisperKitDownloader.isInstalled("whisper-distil-large-v3") ? .downloaded : .notDownloaded
-
-        let whisperSmallStatus: ModelEntry.Status =
-            whisperKitDownloader.isInstalled("whisper-small") ? .downloaded : .notDownloaded
-
-        let whisperTinyStatus: ModelEntry.Status =
-            whisperKitDownloader.isInstalled("whisper-tiny") ? .downloaded : .notDownloaded
 
         return [
             ModelEntry(
@@ -105,6 +94,32 @@ final class ModelManager {
                 status: nemotronUnifiedStatus
             ),
             ModelEntry(
+                id: NemotronStreamingTranscriber.modelId,
+                name: "Nvidia Nemotron 3.5 ASR Streaming 0.6B",
+                description: "NVIDIA's multilingual model for Asian and European languages: Chinese, Japanese, Korean, Vietnamese, Hindi and 30 more. Live preview, pinnable language, punctuation built in.",
+                badge: nil,
+                accuracy: 4,
+                speed: 5,
+                size: "665 MB",
+                language: "~40 languages",
+                isLocal: true,
+                isOnline: false,
+                status: nemotronStreamingStatus
+            ),
+            ModelEntry(
+                id: SenseVoiceTranscriber.modelId,
+                name: "SenseVoice Small",
+                description: "Alibaba FunAudioLLM's Chinese-first model with live preview. Very fast and accurate for Mandarin and Cantonese; also English, Japanese and Korean, detected automatically.",
+                badge: nil,
+                accuracy: 5,
+                speed: 5,
+                size: "240 MB",
+                language: "Chinese, Cantonese, English, Japanese, Korean",
+                isLocal: true,
+                isOnline: false,
+                status: senseVoiceStatus
+            ),
+            ModelEntry(
                 id: "parakeet-v2",
                 name: "Nvidia Parakeet Tdt 0.6B V2",
                 description: "Ultra-fast English-only transcription powered by NVIDIA FastConformer V2. Optimized for English dictation and voice commands.",
@@ -116,58 +131,6 @@ final class ModelManager {
                 isLocal: true,
                 isOnline: false,
                 status: parakeetV2Status
-            ),
-            ModelEntry(
-                id: "whisper-large-v3-turbo",
-                name: "OpenAI Whisper Large V3 Turbo",
-                description: "OpenAI's fastest large Whisper model. Optimized for speed with near-large accuracy across 100+ languages.",
-                badge: nil,
-                accuracy: 5,
-                speed: 3,
-                size: "3.0 GB",
-                language: "Multilingual",
-                isLocal: true,
-                isOnline: false,
-                status: whisperLargeV3TurboStatus
-            ),
-            ModelEntry(
-                id: "whisper-distil-large-v3",
-                name: "OpenAI Whisper Distil Large V3",
-                description: "Distilled Whisper model. Near-large accuracy at 5x faster speed. English only.",
-                badge: nil,
-                accuracy: 4,
-                speed: 5,
-                size: "1.4 GB",
-                language: "English",
-                isLocal: true,
-                isOnline: false,
-                status: whisperDistilLargeV3Status
-            ),
-            ModelEntry(
-                id: "whisper-small",
-                name: "OpenAI Whisper Small",
-                description: "Compact multilingual Whisper model. Good balance of accuracy and size for everyday dictation.",
-                badge: nil,
-                accuracy: 3,
-                speed: 4,
-                size: "479 MB",
-                language: "Multilingual",
-                isLocal: true,
-                isOnline: false,
-                status: whisperSmallStatus
-            ),
-            ModelEntry(
-                id: "whisper-tiny",
-                name: "OpenAI Whisper Tiny",
-                description: "Smallest Whisper model. Ultra-fast with minimal storage. Good for quick dictation and trying Whisper out.",
-                badge: nil,
-                accuracy: 2,
-                speed: 5,
-                size: "73 MB",
-                language: "Multilingual",
-                isLocal: true,
-                isOnline: false,
-                status: whisperTinyStatus
             ),
             ModelEntry(
                 id: "qwen3-asr-0.6b",
@@ -185,7 +148,7 @@ final class ModelManager {
             ModelEntry(
                 id: "qwen3-asr-1.7b",
                 name: "Qwen3 ASR 1.7B",
-                description: "Alibaba's high-accuracy multilingual ASR. 52 languages including Chinese, Japanese, Korean. Competitive with Whisper Large V3.",
+                description: "Alibaba's high-accuracy multilingual ASR. 52 languages including Chinese, Japanese, Korean. Strongest local option for Mandarin.",
                 badge: nil,
                 accuracy: 5,
                 speed: 4,
@@ -237,16 +200,14 @@ extension ModelManager {
         catalog[index].status = .downloading(fraction: nil, eta: nil)
 
         let isMLX = MLXModelConfig.models[id] != nil
-        let isWhisperKit = WhisperKitModelConfig.models[id] != nil
 
         // Progress and terminal status writes are gated on
-        // `tasks[id] != nil` rather than `Task.isCancelled`: the
-        // WhisperKit downloader forwards progress through fresh
-        // unstructured Tasks, so `Task.isCancelled` inspected *those*
-        // (never-cancelled) tasks and the guard was dead on that path —
-        // a straggler tick could overwrite the `.paused`/`.downloaded`
-        // terminal state and leave the card stuck in .downloading with
-        // no Task driving it. `tasks[id]` is cleared in the same
+        // `tasks[id] != nil` rather than `Task.isCancelled`: progress
+        // callbacks can arrive on unstructured Tasks whose own
+        // `isCancelled` never flips, so a straggler tick could overwrite
+        // the `.paused`/`.downloaded` terminal state and leave the card
+        // stuck in .downloading with no Task driving it. `tasks[id]` is
+        // cleared in the same
         // synchronous main-actor stretch as the terminal write, so the
         // gate is airtight, and `remove()` clears it early to keep a
         // half-cancelled SDK call from resurrecting a deleted model.
@@ -254,12 +215,7 @@ extension ModelManager {
             guard let self else { return }
             let terminal: ModelEntry.Status
             do {
-                if isWhisperKit {
-                    try await self.whisperKitDownloader.download(id) { [weak self] status in
-                        guard let self, self.tasks[id] != nil else { return }
-                        self.update(id: id, status: status)
-                    }
-                } else if isMLX {
+                if isMLX {
                     try await self.mlxDownloader.download(id) { [weak self] status in
                         guard let self, self.tasks[id] != nil else { return }
                         self.update(id: id, status: status)
@@ -273,8 +229,6 @@ extension ModelManager {
                 terminal = .downloaded
             } catch is CancellationError {
                 terminal = .paused
-            } catch let failure as WhisperKitModelDownloader.Failure {
-                terminal = .error(message: failure.errorDescription ?? "Download failed.")
             } catch let failure as MLXModelDownloader.Failure {
                 terminal = .error(message: failure.errorDescription ?? "Download failed.")
             } catch let failure as FluidAudioDownloader.Failure {
@@ -318,11 +272,7 @@ extension ModelManager {
         }
 
         let fm = FileManager.default
-        if WhisperKitModelConfig.models[id] != nil {
-            if let dir = whisperKitDownloader.cacheDirectory(id), fm.fileExists(atPath: dir.path) {
-                try fm.removeItem(at: dir)
-            }
-        } else if MLXModelConfig.models[id] != nil {
+        if MLXModelConfig.models[id] != nil {
             for dir in [mlxDownloader.cacheDirectory(id), mlxDownloader.hubStagingDirectory(id)] {
                 if let dir, fm.fileExists(atPath: dir.path) {
                     try fm.removeItem(at: dir)

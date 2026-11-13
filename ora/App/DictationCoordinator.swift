@@ -177,7 +177,6 @@ final class DictationCoordinator {
     private convenience init() {
         let fluidDownloader = FluidAudioDownloader()
         let mlxDownloader = MLXModelDownloader()
-        let whisperKitDownloader = WhisperKitModelDownloader()
         self.init(
             hotkey: HotkeyService(),
             recorder: Recorder(),
@@ -185,12 +184,10 @@ final class DictationCoordinator {
                 "parakeet-v3": FluidAudioTranscriber(downloader: fluidDownloader),
                 "parakeet-v2": FluidAudioTranscriber(modelId: "parakeet-v2", downloader: fluidDownloader),
                 NemotronUnifiedTranscriber.modelId: NemotronUnifiedTranscriber(downloader: fluidDownloader, preferences: .shared),
+                NemotronStreamingTranscriber.modelId: NemotronStreamingTranscriber(downloader: fluidDownloader, preferences: .shared),
+                SenseVoiceTranscriber.modelId: SenseVoiceTranscriber(downloader: fluidDownloader),
                 "qwen3-asr-0.6b": MLXTranscriber(modelId: "qwen3-asr-0.6b", downloader: mlxDownloader),
                 "qwen3-asr-1.7b": MLXTranscriber(modelId: "qwen3-asr-1.7b", downloader: mlxDownloader),
-                "whisper-large-v3-turbo": WhisperKitTranscriber(modelId: "whisper-large-v3-turbo", downloader: whisperKitDownloader),
-                "whisper-distil-large-v3": WhisperKitTranscriber(modelId: "whisper-distil-large-v3", downloader: whisperKitDownloader),
-                "whisper-small": WhisperKitTranscriber(modelId: "whisper-small", downloader: whisperKitDownloader),
-                "whisper-tiny": WhisperKitTranscriber(modelId: "whisper-tiny", downloader: whisperKitDownloader),
             ],
             paster: Paster(),
             overlay: RecordingOverlayController(),
@@ -236,7 +233,7 @@ final class DictationCoordinator {
     /// heavy first-inference cost (CoreML specialization / Metal JIT)
     /// happen while the user is still on the Models page, not on their
     /// next hotkey press (see `Transcriber.prewarm()`). Every *local*
-    /// backend prewarms now (was WhisperKit-only); cloud models have no
+    /// backend prewarms; cloud models have no
     /// transcriber in `localTranscribers`, so they're skipped here.
     func wirePrewarmOnDownload() {
         modelManager.onDownloadComplete = { [weak self] id in
@@ -728,9 +725,9 @@ final class DictationCoordinator {
         // One line per dictation so you can tell from Console which
         // backend actually ran — local vs. which API provider.
         let backend: String
-        if transcriber is FluidAudioTranscriber { backend = "local/ane" }
+        if transcriber is FluidAudioTranscriber || transcriber is NemotronUnifiedTranscriber
+            || transcriber is NemotronStreamingTranscriber || transcriber is SenseVoiceTranscriber { backend = "local/ane" }
         else if transcriber is MLXTranscriber { backend = "local/gpu" }
-        else if transcriber is WhisperKitTranscriber { backend = "local/coreml" }
         else { backend = "api" }
         print("[ora] transcribe route=\(backend) model=\(selectedId)")
         transcribeTask?.cancel()

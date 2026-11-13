@@ -182,7 +182,13 @@ struct LocalModelSettingsSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             infoRow(icon: "internaldrive", label: "Size", value: model.size)
             if model.id == NemotronUnifiedTranscriber.modelId {
-                languagePickerRow
+                languagePickerRow(
+                    selection: $preferences.nemotronUnifiedLanguage,
+                    options: Self.nemotronUnifiedLanguageOptions)
+            } else if model.id == NemotronStreamingTranscriber.modelId {
+                languagePickerRow(
+                    selection: $preferences.nemotronStreamingLanguage,
+                    options: Self.nemotronStreamingLanguageOptions)
             } else {
                 infoRow(icon: "globe", label: "Language", value: model.language)
             }
@@ -206,10 +212,14 @@ struct LocalModelSettingsSheet: View {
         }
     }
 
-    /// Nemotron Unified takes the language as an input, so its sheet
-    /// gets a picker instead of the read-only row. Pinning it is what
-    /// keeps, e.g., French speech from coming out with English words.
-    private var languagePickerRow: some View {
+    /// The Nemotron models take the language as an input, so their
+    /// sheets get a picker instead of the read-only row. Pinning it is
+    /// what keeps, e.g., French speech from coming out with English
+    /// words, or Mandarin from drifting into Japanese.
+    private func languagePickerRow(
+        selection: Binding<String>,
+        options: [(code: String, name: String)]
+    ) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "globe")
                 .font(.system(size: 11))
@@ -219,10 +229,10 @@ struct LocalModelSettingsSheet: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
                 .frame(width: 70, alignment: .leading)
-            Picker("Language", selection: $preferences.nemotronUnifiedLanguage) {
+            Picker("Language", selection: selection) {
                 Text("Auto-detect").tag("auto")
                 Divider()
-                ForEach(Self.nemotronLanguageOptions, id: \.code) { option in
+                ForEach(options, id: \.code) { option in
                     Text(option.name).tag(option.code)
                 }
             }
@@ -233,12 +243,24 @@ struct LocalModelSettingsSheet: View {
         }
     }
 
-    /// The model's 25 languages, named in the user's own locale and
-    /// sorted by that name.
-    private static let nemotronLanguageOptions: [(code: String, name: String)] =
+    /// Nemotron Unified's 25 languages, named in the user's own locale
+    /// and sorted by that name.
+    private static let nemotronUnifiedLanguageOptions: [(code: String, name: String)] =
         NemotronUnifiedTranscriber.languageCodes
             .map { code in
                 let name = Locale.current.localizedString(forLanguageCode: code)?
+                    .localizedCapitalized ?? code
+                return (code, name)
+            }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+
+    /// Nemotron 3.5 Streaming's locales (e.g. "zh-CN", "zh-TW"), named
+    /// with their region so the two Chinese scripts / two Englishes are
+    /// told apart, in the user's own locale and sorted by that name.
+    private static let nemotronStreamingLanguageOptions: [(code: String, name: String)] =
+        NemotronStreamingTranscriber.languageCodes
+            .map { code in
+                let name = Locale.current.localizedString(forIdentifier: code.replacingOccurrences(of: "-", with: "_"))?
                     .localizedCapitalized ?? code
                 return (code, name)
             }

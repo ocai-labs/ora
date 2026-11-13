@@ -90,6 +90,7 @@ final class Preferences {
         static let selectedInputDeviceUID = "ora.selectedInputDeviceUID"
         static let overlayStyle = "ora.overlayStyle"
         static let nemotronUnifiedLanguage = "ora.nemotronUnifiedLanguage"
+        static let nemotronStreamingLanguage = "ora.nemotronStreamingLanguage"
     }
 
     private let defaults: UserDefaults
@@ -164,6 +165,14 @@ final class Preferences {
         }
     }
 
+    /// Locale the Nemotron 3.5 Streaming model is told to transcribe
+    /// ("auto" or a prompt-dictionary key such as "zh-CN" / "ko-KR").
+    /// Applied per session, so a change needs no model reload — see
+    /// NemotronStreamingTranscriber.
+    var nemotronStreamingLanguage: String {
+        didSet { defaults.set(nemotronStreamingLanguage, forKey: Key.nemotronStreamingLanguage) }
+    }
+
     var notificationSoundEnabled: Bool {
         didSet { defaults.set(notificationSoundEnabled, forKey: Key.notificationSoundEnabled) }
     }
@@ -188,7 +197,17 @@ final class Preferences {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        self.selectedModelId = defaults.string(forKey: Key.selectedModelId) ?? Self.defaultModelId
+        // Whisper (WhisperKit) models were removed in 0.7.0. A stored
+        // whisper-* selection would otherwise resolve to no transcriber
+        // and every dictation would fail with "no model", so fall back
+        // to the default. Their downloaded files are left on disk.
+        let storedModelId = defaults.string(forKey: Key.selectedModelId)
+        if let storedModelId, storedModelId.hasPrefix("whisper-") {
+            self.selectedModelId = Self.defaultModelId
+            defaults.set(Self.defaultModelId, forKey: Key.selectedModelId)
+        } else {
+            self.selectedModelId = storedModelId ?? Self.defaultModelId
+        }
         self.autoPaste = (defaults.object(forKey: Key.autoPaste) as? Bool) ?? true
         self.hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
         self.showInDock = (defaults.object(forKey: Key.showInDock) as? Bool) ?? false
@@ -222,5 +241,6 @@ final class Preferences {
         self.notificationSoundName = defaults.string(forKey: Key.notificationSoundName) ?? "Pop"
         self.selectedInputDeviceUID = defaults.string(forKey: Key.selectedInputDeviceUID)
         self.nemotronUnifiedLanguage = defaults.string(forKey: Key.nemotronUnifiedLanguage) ?? "auto"
+        self.nemotronStreamingLanguage = defaults.string(forKey: Key.nemotronStreamingLanguage) ?? "auto"
     }
 }
