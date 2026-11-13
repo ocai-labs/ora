@@ -10,8 +10,6 @@
 		7DD832A02F8737BA005FAD73 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 7DD8329F2F8737BA005FAD73 /* FluidAudio */; };
 		7DD832B02F900001005FAD73 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 7DD832AF2F900001005FAD73 /* Sparkle */; };
 		7DD832B22F900004005FAD73 /* BuildInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DD832B12F900003005FAD73 /* BuildInfo.swift */; };
-		7DD8348B2F8C6A69005FAD73 /* MLXAudioCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7DD8348A2F8C6A69005FAD73 /* MLXAudioCore */; };
-		7DD8348D2F8C6A69005FAD73 /* MLXAudioSTT in Frameworks */ = {isa = PBXBuildFile; productRef = 7DD8348C2F8C6A69005FAD73 /* MLXAudioSTT */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,9 +73,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7DD832A02F8737BA005FAD73 /* FluidAudio in Frameworks */,
-				7DD8348D2F8C6A69005FAD73 /* MLXAudioSTT in Frameworks */,
 				7DD832B02F900001005FAD73 /* Sparkle in Frameworks */,
-				7DD8348B2F8C6A69005FAD73 /* MLXAudioCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -150,8 +146,6 @@
 			packageProductDependencies = (
 				7DD8329F2F8737BA005FAD73 /* FluidAudio */,
 				7DD832AF2F900001005FAD73 /* Sparkle */,
-				7DD8348A2F8C6A69005FAD73 /* MLXAudioCore */,
-				7DD8348C2F8C6A69005FAD73 /* MLXAudioSTT */,
 			);
 			productName = ora;
 			productReference = 7DD832202F866F9F005FAD73 /* ora.app */;
@@ -238,7 +232,6 @@
 			packageReferences = (
 				7DD8329E2F8737BA005FAD73 /* XCRemoteSwiftPackageReference "FluidAudio" */,
 				7DD832AE2F900001005FAD73 /* XCRemoteSwiftPackageReference "Sparkle" */,
-				7DD834892F8C6A69005FAD73 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7DD832212F866F9F005FAD73 /* Products */;
@@ -672,14 +665,6 @@
 				minimumVersion = 2.6.0;
 			};
 		};
-		7DD834892F8C6A69005FAD73 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Blaizzy/mlx-audio-swift.git";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -692,16 +677,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 7DD832AE2F900001005FAD73 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
-		};
-		7DD8348A2F8C6A69005FAD73 /* MLXAudioCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 7DD834892F8C6A69005FAD73 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */;
-			productName = MLXAudioCore;
-		};
-		7DD8348C2F8C6A69005FAD73 /* MLXAudioSTT */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 7DD834892F8C6A69005FAD73 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */;
-			productName = MLXAudioSTT;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

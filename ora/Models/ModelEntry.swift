@@ -50,7 +50,6 @@ struct ModelEntry: Identifiable, Equatable {
              NemotronStreamingTranscriber.modelId: "BrandNvidia"
         case "openai-api": "BrandOpenAI"
         case "groq-api": "BrandGroq"
-        case "qwen3-asr-0.6b", "qwen3-asr-1.7b": "BrandQwen"
         default: nil
         }
     }

@@ -24,7 +24,7 @@ struct TranscriberErrorTests {
 
     @Test("modelNotDownloaded works for each backend name")
     func modelNotDownloadedVariants() {
-        for name in ["Parakeet", "SenseVoice", "Qwen3-ASR"] {
+        for name in ["Parakeet", "SenseVoice", "Nemotron Streaming"] {
             let desc = TranscriberError.modelNotDownloaded(name: name).errorDescription!
             #expect(desc.contains(name))
         }

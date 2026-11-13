@@ -49,8 +49,8 @@ the models, and your data.
   pill as you speak. Nothing is typed until you release the key, so your cursor
   and existing text stay untouched.
 - **Your choice of models** — on-device **Parakeet** and **Nemotron Unified**
-  (NVIDIA), **Nemotron 3.5 Streaming** and **SenseVoice** for Chinese,
-  Japanese and Korean, and **Qwen3-ASR**, or bring
+  (NVIDIA), and **Nemotron 3.5 Streaming** and **SenseVoice** for Chinese,
+  Japanese and Korean, or bring
   your own API key for **OpenAI** / **Groq**. Switch any time from Settings.
 - **Pin your language** — Nemotron Unified covers 25 European languages and
   Nemotron 3.5 Streaming about 40 (including Mandarin, Japanese and Korean);
@@ -59,13 +59,14 @@ the models, and your data.
 - **Push-to-talk or toggle** — hold the hotkey to dictate, or press once to
   start and again to stop. Cancel any in-flight dictation with **ESC**.
 - **Menu-bar app** — no Dock clutter, no window to manage; just a status-bar icon.
+  Its menu has **Copy Last Transcription** in case a paste lands in the wrong place.
 - **Private by default** — local models mean zero network calls for
   transcription. No telemetry, no analytics, no crash reporting, ever.
 - **Auto-updates** — signed, notarized releases delivered in the background via
   [Sparkle](https://sparkle-project.org).
 
 <div align="center">
-  <img src="assets/models.png" alt="Ora model picker — Parakeet, Nemotron, SenseVoice and Qwen models, downloadable and switchable from Settings" width="540" />
+  <img src="assets/models.png" alt="Ora model picker — Parakeet, Nemotron and SenseVoice models, downloadable and switchable from Settings" width="540" />
 </div>
 
 ## Install
@@ -95,8 +96,8 @@ Building from source additionally needs Xcode 26+ — see [Build from source](#b
 Ora is built around a simple rule: **your voice never leaves your Mac.**
 
 - **No network calls for transcription.** On-device Parakeet, Nemotron,
-  SenseVoice, and Qwen models run entirely locally via [FluidAudio](https://github.com/FluidInference/FluidAudio)
-  and MLX. Audio is captured, transcribed, and discarded on your machine.
+  and SenseVoice models run entirely locally via [FluidAudio](https://github.com/FluidInference/FluidAudio).
+  Audio is captured, transcribed, and discarded on your machine.
   *(The optional OpenAI / Groq backends are the one exception — they upload
   audio to that provider, and only if you explicitly choose one.)*
 - **No telemetry, no analytics, no crash reporting.** Ora does not phone home

@@ -12,8 +12,7 @@
 //  Backends implementing this protocol: FluidAudioTranscriber
 //  (Parakeet via ANE), NemotronUnifiedTranscriber,
 //  NemotronStreamingTranscriber and SenseVoiceTranscriber (FluidAudio,
-//  ANE), MLXTranscriber (Qwen3-ASR via GPU), and APITranscriber
-//  (cloud).
+//  ANE), and APITranscriber (cloud).
 //  The coordinator picks the active backend at hotkey time based on
 //  the user's selected model.
 //
@@ -56,8 +55,7 @@ extension Transcriber {
     /// is the first *inference*, not the model load — measured in
     /// `spikes/retranscribe-speed-spike`, a CoreML pipeline loads in a
     /// couple of seconds but its first specialization can run much
-    /// longer; MLX/Qwen JITs its Metal kernels (~5 s) on the first
-    /// `generate`; Parakeet specializes its ANE encoder on first run.
+    /// longer; Parakeet specializes its ANE encoder on first run.
     /// Loading the model alone left all of that on the next dictation. Running a silent inference
     /// here pays it inside Settings/idle time instead.
     ///

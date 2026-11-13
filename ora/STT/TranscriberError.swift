@@ -4,7 +4,7 @@
 //
 //  Shared error type for all local transcriber backends.
 //  Replaces the identical Failure enums that were duplicated across
-//  the FluidAudio transcribers and MLXTranscriber.
+//  the FluidAudio transcribers.
 //
 
 import Foundation

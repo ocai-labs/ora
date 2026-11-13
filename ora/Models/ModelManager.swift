@@ -3,7 +3,7 @@
 //  ora
 //
 //  Source of truth for the local + API model catalog. Owns per-entry
-//  status, download Tasks, and the FluidAudio and MLX adapters. UI reads
+//  status, download Tasks, and the FluidAudio adapter. UI reads
 //  `catalog` from the environment and calls action methods to mutate it.
 //
 
@@ -18,7 +18,6 @@ final class ModelManager {
     private(set) var catalog: [ModelEntry]
 
     private let fluidDownloader: FluidAudioDownloader
-    private let mlxDownloader: MLXModelDownloader
     private var tasks: [String: Task<Void, Never>] = [:]
 
     /// Fired after a download transitions to `.downloaded`. Used by
@@ -30,20 +29,16 @@ final class ModelManager {
 
     init() {
         let fluidDownloader = FluidAudioDownloader()
-        let mlxDownloader = MLXModelDownloader()
         self.fluidDownloader = fluidDownloader
-        self.mlxDownloader = mlxDownloader
         self.catalog = Self.initialCatalog(
-            fluidDownloader: fluidDownloader,
-            mlxDownloader: mlxDownloader
+            fluidDownloader: fluidDownloader
         )
     }
 
     // MARK: - Catalog seeding
 
     private static func initialCatalog(
-        fluidDownloader: FluidAudioDownloader,
-        mlxDownloader: MLXModelDownloader
+        fluidDownloader: FluidAudioDownloader
     ) -> [ModelEntry] {
         let parakeetV3Status: ModelEntry.Status =
             fluidDownloader.isInstalled("parakeet-v3") ? .downloaded : .notDownloaded
@@ -59,12 +54,6 @@ final class ModelManager {
 
         let parakeetV2Status: ModelEntry.Status =
             fluidDownloader.isInstalled("parakeet-v2") ? .downloaded : .notDownloaded
-
-        let qwen06bStatus: ModelEntry.Status =
-            mlxDownloader.isInstalled("qwen3-asr-0.6b") ? .downloaded : .notDownloaded
-
-        let qwen17bStatus: ModelEntry.Status =
-            mlxDownloader.isInstalled("qwen3-asr-1.7b") ? .downloaded : .notDownloaded
 
         return [
             ModelEntry(
@@ -133,32 +122,6 @@ final class ModelManager {
                 status: parakeetV2Status
             ),
             ModelEntry(
-                id: "qwen3-asr-0.6b",
-                name: "Qwen3 ASR 0.6B",
-                description: "Alibaba's lightweight multilingual ASR. 52 languages including Chinese, Japanese, Korean. Optimized for speed.",
-                badge: nil,
-                accuracy: 4,
-                speed: 5,
-                size: "969 MB",
-                language: "Multilingual",
-                isLocal: true,
-                isOnline: false,
-                status: qwen06bStatus
-            ),
-            ModelEntry(
-                id: "qwen3-asr-1.7b",
-                name: "Qwen3 ASR 1.7B",
-                description: "Alibaba's high-accuracy multilingual ASR. 52 languages including Chinese, Japanese, Korean. Strongest local option for Mandarin.",
-                badge: nil,
-                accuracy: 5,
-                speed: 4,
-                size: "2.3 GB",
-                language: "Multilingual",
-                isLocal: true,
-                isOnline: false,
-                status: qwen17bStatus
-            ),
-            ModelEntry(
                 id: "openai-api",
                 name: "OpenAI API",
                 description: "OpenAI API for transcription. GPT-4o Transcribe is recommended.",
@@ -199,7 +162,6 @@ extension ModelManager {
         // before the disk poller has accumulated enough samples to estimate.
         catalog[index].status = .downloading(fraction: nil, eta: nil)
 
-        let isMLX = MLXModelConfig.models[id] != nil
 
         // Progress and terminal status writes are gated on
         // `tasks[id] != nil` rather than `Task.isCancelled`: progress
@@ -215,22 +177,13 @@ extension ModelManager {
             guard let self else { return }
             let terminal: ModelEntry.Status
             do {
-                if isMLX {
-                    try await self.mlxDownloader.download(id) { [weak self] status in
-                        guard let self, self.tasks[id] != nil else { return }
-                        self.update(id: id, status: status)
-                    }
-                } else {
-                    try await self.fluidDownloader.download(id) { [weak self] status in
-                        guard let self, self.tasks[id] != nil else { return }
-                        self.update(id: id, status: status)
-                    }
+                try await self.fluidDownloader.download(id) { [weak self] status in
+                    guard let self, self.tasks[id] != nil else { return }
+                    self.update(id: id, status: status)
                 }
                 terminal = .downloaded
             } catch is CancellationError {
                 terminal = .paused
-            } catch let failure as MLXModelDownloader.Failure {
-                terminal = .error(message: failure.errorDescription ?? "Download failed.")
             } catch let failure as FluidAudioDownloader.Failure {
                 terminal = .error(message: failure.errorDescription ?? "Download failed.")
             } catch {
@@ -255,9 +208,7 @@ extension ModelManager {
     }
 
     /// Deletes the on-disk model files for `id` and resets status to
-    /// `.notDownloaded`. For MLX models this also removes the HuggingFace
-    /// Hub staging cache so the next download is a true re-download.
-    /// Throws if the deletion itself fails.
+    /// `.notDownloaded`. Throws if the deletion itself fails.
     func remove(_ id: String) throws {
         guard let index = catalog.firstIndex(where: { $0.id == id }) else { return }
 
@@ -272,13 +223,7 @@ extension ModelManager {
         }
 
         let fm = FileManager.default
-        if MLXModelConfig.models[id] != nil {
-            for dir in [mlxDownloader.cacheDirectory(id), mlxDownloader.hubStagingDirectory(id)] {
-                if let dir, fm.fileExists(atPath: dir.path) {
-                    try fm.removeItem(at: dir)
-                }
-            }
-        } else if let dir = fluidDownloader.cacheDirectory(id), fm.fileExists(atPath: dir.path) {
+        if let dir = fluidDownloader.cacheDirectory(id), fm.fileExists(atPath: dir.path) {
             try fm.removeItem(at: dir)
         }
         catalog[index].status = .notDownloaded

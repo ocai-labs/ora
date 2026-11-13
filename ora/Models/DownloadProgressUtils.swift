@@ -3,7 +3,7 @@
 //  ora
 //
 //  Pure filesystem utilities for download progress tracking. Extracted
-//  from FluidAudioDownloader and MLXModelDownloader — these functions
+//  from FluidAudioDownloader — these functions
 //  have no SDK dependency and were duplicated verbatim.
 //
 //  Everything here is `nonisolated`: these helpers recursively walk
