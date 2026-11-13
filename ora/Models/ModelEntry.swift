@@ -36,7 +36,7 @@ struct ModelEntry: Identifiable, Equatable {
     /// whole buffer every second).
     var supportsLivePreview: Bool {
         switch id {
-        case "parakeet-v2", "parakeet-v3", NemotronUnifiedTranscriber.modelId,
+        case FluidAudioTranscriber.modelId, NemotronUnifiedTranscriber.modelId,
              NemotronStreamingTranscriber.modelId, SenseVoiceTranscriber.modelId: true
         default: false
         }
@@ -46,7 +46,7 @@ struct ModelEntry: Identifiable, Equatable {
     /// `nil` falls back to the card's generic SF Symbol.
     var brandIconAsset: String? {
         switch id {
-        case "parakeet-v2", "parakeet-v3", NemotronUnifiedTranscriber.modelId,
+        case FluidAudioTranscriber.modelId, NemotronUnifiedTranscriber.modelId,
              NemotronStreamingTranscriber.modelId: "BrandNvidia"
         case "openai-api": "BrandOpenAI"
         case "groq-api": "BrandGroq"

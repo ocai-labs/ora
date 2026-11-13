@@ -7,9 +7,9 @@
 //  FluidAudio's `UnifiedAsrManager` — the offline/batch path: 15 s
 //  full-attention windows with 2 s overlap, fp16 encoder.
 //
-//  ## Why this model, next to Parakeet v3
+//  ## Why this model, next to Parakeet Ultra
 //
-//  Parakeet TDT v3 has no language input: it auto-detects per utterance,
+//  Parakeet (v3, and Ultra, its post-training) has no language input: it auto-detects per utterance,
 //  and FluidAudio's `language:` hint for it only filters by *script*
 //  (French and English are both Latin), so a French speaker still gets
 //  English words. Nemotron Unified takes the language as an encoder

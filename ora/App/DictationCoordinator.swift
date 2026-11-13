@@ -187,8 +187,7 @@ final class DictationCoordinator {
             hotkey: HotkeyService(),
             recorder: Recorder(),
             localTranscribers: [
-                "parakeet-v3": FluidAudioTranscriber(downloader: fluidDownloader),
-                "parakeet-v2": FluidAudioTranscriber(modelId: "parakeet-v2", downloader: fluidDownloader),
+                FluidAudioTranscriber.modelId: FluidAudioTranscriber(downloader: fluidDownloader),
                 NemotronUnifiedTranscriber.modelId: NemotronUnifiedTranscriber(downloader: fluidDownloader, preferences: .shared),
                 NemotronStreamingTranscriber.modelId: NemotronStreamingTranscriber(downloader: fluidDownloader, preferences: .shared),
                 SenseVoiceTranscriber.modelId: SenseVoiceTranscriber(downloader: fluidDownloader),

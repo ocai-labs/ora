@@ -38,6 +38,16 @@ struct ModelMigrationTests {
         }
     }
 
+    @Test("stored Parakeet v2/v3 selections move to Parakeet Ultra")
+    func parakeetSelectionMigrates() {
+        for old in ["parakeet-v2", "parakeet-v3"] {
+            withDefaults { defaults in
+                defaults.set(old, forKey: "ora.selectedModelId")
+                #expect(Preferences(defaults: defaults).selectedModelId == "parakeet-ultra")
+            }
+        }
+    }
+
     @Test("other stored selections are kept")
     func otherSelectionKept() {
         withDefaults { defaults in

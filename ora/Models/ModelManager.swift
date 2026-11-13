@@ -40,8 +40,8 @@ final class ModelManager {
     private static func initialCatalog(
         fluidDownloader: FluidAudioDownloader
     ) -> [ModelEntry] {
-        let parakeetV3Status: ModelEntry.Status =
-            fluidDownloader.isInstalled("parakeet-v3") ? .downloaded : .notDownloaded
+        let parakeetStatus: ModelEntry.Status =
+            fluidDownloader.isInstalled(FluidAudioTranscriber.modelId) ? .downloaded : .notDownloaded
 
         let nemotronUnifiedStatus: ModelEntry.Status =
             fluidDownloader.isInstalled(NemotronUnifiedTranscriber.modelId) ? .downloaded : .notDownloaded
@@ -52,22 +52,19 @@ final class ModelManager {
         let senseVoiceStatus: ModelEntry.Status =
             fluidDownloader.isInstalled(SenseVoiceTranscriber.modelId) ? .downloaded : .notDownloaded
 
-        let parakeetV2Status: ModelEntry.Status =
-            fluidDownloader.isInstalled("parakeet-v2") ? .downloaded : .notDownloaded
-
         return [
             ModelEntry(
-                id: "parakeet-v3",
-                name: "Nvidia Parakeet Tdt 0.6B V3",
-                description: "Ultra-fast transcription powered by NVIDIA FastConformer. Optimized for conversational speech and voice commands.",
+                id: FluidAudioTranscriber.modelId,
+                name: "Parakeet Ultra 0.6B",
+                description: "Fast, accurate dictation in English and 24 other European languages, detected automatically. A post-training of NVIDIA Parakeet v3 by moondream: same speed, fewer errors in every language. Live preview.",
                 badge: nil,
                 accuracy: 5,
                 speed: 5,
-                size: "461 MB",
-                language: "Multilingual",
+                size: "632 MB",
+                language: "25 languages",
                 isLocal: true,
                 isOnline: false,
-                status: parakeetV3Status
+                status: parakeetStatus
             ),
             ModelEntry(
                 id: NemotronUnifiedTranscriber.modelId,
@@ -107,19 +104,6 @@ final class ModelManager {
                 isLocal: true,
                 isOnline: false,
                 status: senseVoiceStatus
-            ),
-            ModelEntry(
-                id: "parakeet-v2",
-                name: "Nvidia Parakeet Tdt 0.6B V2",
-                description: "Ultra-fast English-only transcription powered by NVIDIA FastConformer V2. Optimized for English dictation and voice commands.",
-                badge: nil,
-                accuracy: 5,
-                speed: 5,
-                size: "451 MB",
-                language: "English",
-                isLocal: true,
-                isOnline: false,
-                status: parakeetV2Status
             ),
             ModelEntry(
                 id: "openai-api",

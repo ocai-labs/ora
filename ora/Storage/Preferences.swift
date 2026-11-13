@@ -73,10 +73,12 @@ enum ActivationMode: String, CaseIterable, Identifiable {
 @Observable
 final class Preferences {
     static let shared = Preferences()
-    static let defaultModelId = "parakeet-v3"
+    static let defaultModelId = FluidAudioTranscriber.modelId
 
     /// Id prefixes of models dropped from the catalog — see init.
-    static let removedModelPrefixes = ["whisper-", "qwen3-asr-"]
+    /// Parakeet v3 was replaced by Parakeet Ultra (the same model,
+    /// post-trained) and v2 retired, so both move to the default.
+    static let removedModelPrefixes = ["whisper-", "qwen3-asr-", "parakeet-v2", "parakeet-v3"]
 
     private enum Key {
         static let selectedModelId = "ora.selectedModelId"
@@ -200,8 +202,8 @@ final class Preferences {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        // Whisper (WhisperKit) and Qwen3-ASR (MLX) models were removed
-        // in 0.7.0. A stored selection of one would otherwise resolve to
+        // Whisper (WhisperKit), Qwen3-ASR (MLX) and Parakeet v2/v3
+        // were removed in 0.7.0. A stored selection of one would otherwise resolve to
         // no transcriber and every dictation would fail with "no model",
         // so fall back to the default. Their downloaded files are left
         // on disk.
