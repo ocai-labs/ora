@@ -9,6 +9,41 @@ Release notes for a given version are extracted from this file by
 `scripts/create-release.sh` and posted to the matching GitHub Release,
 so keep each version section self-contained and user-facing.
 
+## [0.8.0] - 2026-11-13
+
+### Added
+- **History** (new Settings page): your last 25 dictations, stored on
+  this Mac only. Play back the audio with a draggable scrubber, copy
+  the text, or regenerate it with the same or another model from the
+  ⋯ menu. A dictation that failed to transcribe keeps its audio, so
+  nothing you said is lost. Turn off "Save recordings" to stop saving
+  and delete everything.
+- **Interface** (new Settings page): Appearance, plus separate
+  switches for the recording pill and the live-transcription bubble,
+  a pill position (top or bottom of the screen), and an overlay glass
+  tint with a strength slider.
+- **Return finishes a dictation**, like the shortcut does. The Return
+  isn't passed to the app, so a chat box won't send an empty message.
+  Can be turned off in Settings → Dictation.
+
+### Changed
+- The recording pill now sits at the **bottom** of the screen by
+  default; move it back to the top in Settings → Interface.
+- **Toggle** (press once to start, again to stop) is now the default
+  shortcut mode for new installs. Your current choice is kept.
+- On macOS 26 and later the overlay uses native Liquid Glass and
+  follows your Light / Dark appearance instead of always being dark.
+- Settings pages are now ordered General, Interface, Dictation,
+  Models, History.
+
+### Fixed
+- **SenseVoice dictations longer than 30 seconds** were silently
+  dropped: nothing was pasted, Copy Last Transcription returned the
+  previous one, and the live preview froze at 30 s. Long recordings
+  now transcribe in full.
+- A transcription that fails now shows a "Transcription failed" pill
+  instead of disappearing without a trace.
+
 ## [0.7.0] - 2026-11-12
 
 ### Added
