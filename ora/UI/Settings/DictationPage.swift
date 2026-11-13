@@ -2,7 +2,8 @@
 //  DictationPage.swift
 //  ora
 //
-//  Dictation trigger settings — hotkey shortcut and input mode.
+//  Dictation settings — input device, output, sounds, and the trigger
+//  (hotkey, Hold / Toggle mode, Return to finish).
 //
 
 import SwiftUI
@@ -70,6 +71,12 @@ struct DictationPage: View {
                 Text(preferences.activationMode.description)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+
+                Toggle("Return finishes dictation", isOn: $preferences.returnFinishesDictation)
+
+                Text("Press Return while recording to stop and paste. That Return isn't sent to the app.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
             }
 
             Section("Try It Out") {
@@ -91,7 +98,7 @@ struct DictationPage: View {
                         )
 
                     if testInput.isEmpty {
-                        Text("Hold \(preferences.activationKey.rawValue) and speak to test…")
+                        Text(tryItPlaceholder(key: preferences.activationKey.rawValue))
                             .font(.body)
                             .foregroundStyle(.tertiary)
                             .padding(12)
@@ -102,6 +109,13 @@ struct DictationPage: View {
         }
         .formStyle(.grouped)
         .onAppear { inputDevices.refresh() }
+    }
+
+    private func tryItPlaceholder(key: String) -> String {
+        switch preferences.activationMode {
+        case .hold: "Hold \(key) and speak to test…"
+        case .toggle: "Press \(key), speak, then press it again to test…"
+        }
     }
 
     /// Bridges `InputDeviceStore`'s `String?` selection ("nil = follow

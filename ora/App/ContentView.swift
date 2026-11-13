@@ -41,8 +41,12 @@ struct ContentView: View {
         switch page {
         case .general:
             GeneralPage()
+        case .interface:
+            InterfacePage()
         case .dictation:
             DictationPage()
+        case .history:
+            HistoryPage()
         case .models:
             ModelsPage()
         }

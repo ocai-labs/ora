@@ -13,6 +13,7 @@ struct oraApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var preferences = Preferences.shared
     @State private var modelManager = ModelManager.shared
+    @State private var history = HistoryStore.shared
 
     var body: some Scene {
         MenuBarExtra(
@@ -34,6 +35,7 @@ struct oraApp: App {
             ContentView()
                 .environment(preferences)
                 .environment(modelManager)
+                .environment(history)
                 .environment(DictationCoordinator.shared.inputDevices)
                 .onChange(of: preferences.showInDock) { _, newValue in
                     AppearanceController.applyDockVisibility(newValue)

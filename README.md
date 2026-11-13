@@ -9,11 +9,12 @@
 ![Platform](https://img.shields.io/badge/platform-macOS%2014%2B%20·%20Apple%20Silicon-lightgrey)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
-**Local, private voice-to-text for macOS.** Hold a hotkey, speak, release —
-your words are transcribed on-device and pasted into whatever app you're using.
+**Local, private voice-to-text for macOS.** Press a hotkey, speak, press it
+again — your words are transcribed on-device and pasted into whatever app
+you're using.
 No cloud round-trip, no account, no telemetry.
 
-<img src="assets/live-preview.gif" alt="Ora live preview — as you speak, the transcript forms in a bubble above the dictation pill and is pasted when you release the hotkey" width="760" />
+<img src="assets/live-preview.gif" alt="Ora live preview — as you speak, the transcript forms in a bubble above the dictation pill and is pasted when you finish" width="760" />
 
 <p>
   <a href="https://github.com/ocai-labs/ora/releases/latest/download/Ora.dmg"><b>↓ Download Ora.dmg</b></a>
@@ -30,7 +31,7 @@ No cloud round-trip, no account, no telemetry.
 ## What is Ora?
 
 Ora turns your voice into text anywhere on your Mac. Press **Option+Space**,
-talk, and release — the transcript lands at your cursor in whatever app has
+talk, and press it again — the transcript lands at your cursor in whatever app has
 focus: your editor, browser, chat box, email, terminal. It lives in the menu
 bar and stays out of the way until you need it.
 
@@ -44,10 +45,15 @@ the models, and your data.
 - **Dictate into any app** — the transcript is pasted right where your cursor
   is: editors, browsers, Slack, email, terminals. If you'd rather not auto-paste,
   Ora can just copy to the clipboard instead.
-- **Live preview** *(optional)* — switch the dictation display to **Panel** with
-  a Parakeet, Nemotron or SenseVoice model and watch the text form in a bubble above the
-  pill as you speak. Nothing is typed until you release the key, so your cursor
-  and existing text stay untouched.
+- **Live preview** — with a Parakeet, Nemotron or SenseVoice model, watch the
+  text form in a bubble at the bottom of the screen as you speak. Nothing is
+  typed until you finish, so your cursor and existing text stay untouched.
+- **Make the overlay yours** — in **Settings → Interface**, show or hide the
+  recording pill, put it at the bottom (default) or top of the screen, and turn
+  live transcription on or off. The overlay is native Liquid Glass on macOS 26
+  (a blurred material on older systems) that follows Light / Dark appearance,
+  with an optional tint colour and strength. Errors always show a pill, even
+  with everything hidden.
 - **Your choice of models** — on-device **Parakeet Ultra** and **Nemotron Unified**
   (NVIDIA), and **Nemotron 3.5 Streaming** and **SenseVoice** for Chinese,
   Japanese and Korean, or bring
@@ -56,12 +62,18 @@ the models, and your data.
   Nemotron 3.5 Streaming about 40 (including Mandarin, Japanese and Korean);
   both let you lock the one you speak (say, French), so it doesn't drift into
   English words mid-sentence. Punctuation is built in.
-- **Push-to-talk or toggle** — hold the hotkey to dictate, or press once to
-  start and again to stop. **Return** also finishes a recording (it isn't
-  passed on to the app, so a chat box won't send an empty message). Cancel
-  any in-flight dictation with **ESC**.
+- **Toggle or push-to-talk** — press the hotkey once to start and again to stop
+  (the default), or switch to **Hold** to dictate while the key is down.
+  **Return** also finishes a recording (it isn't passed on to the app, so a
+  chat box won't send an empty message) — turn that off in Settings →
+  Dictation if you'd rather it didn't. Cancel any in-flight dictation with
+  **ESC**.
 - **Menu-bar app** — no Dock clutter, no window to manage; just a status-bar icon.
   Its menu has **Copy Last Transcription** in case a paste lands in the wrong place.
+- **History** — Settings → History keeps your last 25 recordings and their
+  transcripts on your Mac. Play one back, copy its text, or **regenerate** it
+  with another installed model — handy when a transcription failed, since the
+  audio is kept. Turn **Save recordings** off to stop saving and delete them all.
 - **Private by default** — local models mean zero network calls for
   transcription. No telemetry, no analytics, no crash reporting, ever.
 - **Auto-updates** — signed, notarized releases delivered in the background via
@@ -99,7 +111,7 @@ Ora is built around a simple rule: **your voice never leaves your Mac.**
 
 - **No network calls for transcription.** On-device Parakeet, Nemotron,
   and SenseVoice models run entirely locally via [FluidAudio](https://github.com/FluidInference/FluidAudio).
-  Audio is captured, transcribed, and discarded on your machine.
+  Audio is captured and transcribed on your machine.
   *(The optional OpenAI / Groq backends are the one exception — they upload
   audio to that provider, and only if you explicitly choose one.)*
 - **No telemetry, no analytics, no crash reporting.** Ora does not phone home
@@ -108,6 +120,11 @@ Ora is built around a simple rule: **your voice never leaves your Mac.**
   Settings.
 - **Models live in your own Application Support directory.** Download and delete
   them from Settings; nothing is hidden.
+- **History stays on your Mac.** Your last 25 recordings and their transcripts
+  are saved locally (in `~/Library/Application Support/Ora/History`) so you can
+  replay, copy or regenerate them — never uploaded anywhere. Delete one, clear
+  them all, or turn **Save recordings** off in Settings → History to delete
+  them and stop saving new ones.
 
 If you're dictating something sensitive and want belt-and-suspenders
 confirmation, throw Ora into Little Snitch or disconnect Wi-Fi: transcription

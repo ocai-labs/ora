@@ -49,7 +49,7 @@
 //  teardown is deferred until the boot completes; we can't interrupt
 //  AVAudioEngine mid-prepare. No-op from `idle` / `error(_)`.
 //
-//  While `.recording` with the panel overlay style and a preview-
+//  While `.recording` with "Show live transcription" on and a preview-
 //  capable model, a `LivePreviewEngine` re-transcribes the accumulated
 //  buffer every ~1 s and writes the partial text into the overlay
 //  state. It rides alongside the state machine rather than in it: the
@@ -57,6 +57,13 @@
 //  on every transition out, and the release path below is unchanged —
 //  the final transcription never depends on the preview loop. See
 //  `docs/2026-06-10-streaming-live-preview-spec.md` §5.3.
+//
+//  With "Save recordings" on, every recording that passes the too-short
+//  guard is saved to `HistoryStore` (audio written in the background,
+//  never on the paste path): text + success on a transcript, failed —
+//  audio kept for Regenerate — on an error, removed on cancel or an
+//  empty result. `regenerate(entryID:modelId:)` re-transcribes a saved
+//  entry without pasting.
 //
 //  See `docs/2026-04-09-m6-dictation-coordinator-design.md` for the
 //  full transitions table, the rationale for each design decision,
@@ -102,8 +109,9 @@ final class DictationCoordinator {
     /// Text of the most recent successful transcription, for the menu
     /// bar's "Copy Last Transcription". Set before the paste, so it's
     /// there even when the paste itself fails (e.g. Accessibility was
-    /// revoked) — the words aren't lost. Memory only: never written to
-    /// disk, in keeping with Ora's no-retention privacy rule.
+    /// revoked) — the words aren't lost. Memory only (this session); the
+    /// on-disk copy, if any, is the separate opt-out History
+    /// (`HistoryStore`).
     private(set) var lastTranscript: String?
 
     // MARK: - Dependencies (owned)
@@ -122,6 +130,7 @@ final class DictationCoordinator {
     private let modelManager: ModelManager
     private let preferences: Preferences
     private let inputDeviceStore: InputDeviceStore
+    private let history: HistoryStore
     private let keyMonitor = DictationKeyMonitor()
 
     // MARK: - Shared dependencies exposed for SwiftUI environments
@@ -145,8 +154,8 @@ final class DictationCoordinator {
     /// the error window cleanly replaces it.
     private var errorDismissTask: Task<Void, Never>?
 
-    /// The live-preview loop for the panel overlay (spec §5.3).
-    /// Non-nil only while a panel-style recording with a preview-
+    /// The live-preview loop for the transcription bubble (spec §5.3).
+    /// Non-nil only while a live-transcription recording with a preview-
     /// capable model is in flight. Stopped by `transition(to:)` on
     /// every move out of `.recording`, and explicitly at the top of
     /// `stopRecordingAndTranscribe()` so no new preview round can
@@ -190,6 +199,11 @@ final class DictationCoordinator {
     /// state or clobber it with a stale error.
     private var dictationGeneration = 0
 
+    /// History entry of the dictation currently being transcribed, if
+    /// it was saved. Cleared once the pipeline settles it (success,
+    /// failure, empty); a cancel before then deletes it.
+    private var pendingHistoryID: UUID?
+
     // MARK: - Init
 
     /// Shared singleton used by AppDelegate and DictationPage.
@@ -213,7 +227,8 @@ final class DictationCoordinator {
             overlay: RecordingOverlayController(),
             modelManager: .shared,
             preferences: .shared,
-            inputDeviceStore: InputDeviceStore(preferences: .shared)
+            inputDeviceStore: InputDeviceStore(preferences: .shared),
+            history: .shared
         )
     }
 
@@ -228,7 +243,8 @@ final class DictationCoordinator {
         overlay: RecordingOverlayController,
         modelManager: ModelManager,
         preferences: Preferences,
-        inputDeviceStore: InputDeviceStore
+        inputDeviceStore: InputDeviceStore,
+        history: HistoryStore
     ) {
         self.hotkey = hotkey
         self.recorder = recorder
@@ -238,6 +254,7 @@ final class DictationCoordinator {
         self.modelManager = modelManager
         self.preferences = preferences
         self.inputDeviceStore = inputDeviceStore
+        self.history = history
     }
 
     // No deinit: under strict concurrency a `@MainActor` class's deinit
@@ -527,9 +544,11 @@ final class DictationCoordinator {
     /// Whether the key monitor should arm (consume) Return in `state`.
     /// Must agree with `returnAction`: Return is swallowed exactly when
     /// it will finish the dictation, and passes through to the focused
-    /// app otherwise — notably while `.transcribing`.
-    static func returnIsArmed(in state: State) -> Bool {
-        returnAction(from: state) != .ignore
+    /// app otherwise — notably while `.transcribing`. With the
+    /// "Return finishes dictation" setting off (`enabled == false`) it
+    /// is never armed, so Return always reaches the app.
+    static func returnIsArmed(in state: State, enabled: Bool = true) -> Bool {
+        enabled && returnAction(from: state) != .ignore
     }
 
     /// Modifiers that may be held while pressing Return without it
@@ -669,6 +688,11 @@ final class DictationCoordinator {
 
         transcribeTask?.cancel()
         transcribeTask = nil
+        // A cancelled dictation leaves nothing behind.
+        if let pendingHistoryID {
+            history.delete(id: pendingHistoryID)
+            self.pendingHistoryID = nil
+        }
         transition(to: .idle)
     }
 
@@ -829,7 +853,9 @@ final class DictationCoordinator {
 
     private func startTranscribePipeline(buffer: AVAudioPCMBuffer) {
         let selectedId = preferences.selectedModelId ?? Preferences.defaultModelId
+        let historyID = saveToHistoryIfEnabled(buffer: buffer, modelId: selectedId)
         guard let transcriber = resolveTranscriber(for: selectedId) else {
+            settleHistory(historyID, text: nil, failed: true)
             transition(to: .error(.noModel))
             return
         }
@@ -855,11 +881,15 @@ final class DictationCoordinator {
                 // already back on main here. Empty result is treated
                 // as success-with-nothing-to-paste.
                 if text.isEmpty {
+                    self.settleHistory(historyID, text: nil, failed: false)
                     self.transition(to: .idle)
                     return
                 }
 
                 self.lastTranscript = text
+                // Before the paste, so a paste failure can't lose it.
+                // Cheap: the index write is queued off the main actor.
+                self.settleHistory(historyID, text: text, failed: false)
 
                 if self.preferences.autoPaste {
                     try await self.paster.paste(text)
@@ -891,8 +921,118 @@ final class DictationCoordinator {
                    case .accessibilityNotTrusted = pasterFailure {
                     _ = Paster.requestTrust(prompt: true)
                 }
-                self.transition(to: Self.stateForPipelineError(error))
+                let newState = Self.stateForPipelineError(error)
+                // Still pending = the transcriber threw (a paste error
+                // comes after the entry was settled as a success).
+                // Empty audio is silent → drop; a real failure keeps
+                // the audio for Regenerate.
+                if historyID != nil, historyID == self.pendingHistoryID {
+                    self.settleHistory(historyID, text: nil, failed: newState != .idle)
+                }
+                self.transition(to: newState)
             }
+        }
+    }
+
+    // MARK: - History
+
+    /// Saves the recording as a pending history entry (audio written in
+    /// the background) when "Save recordings" is on. Returns its id.
+    private func saveToHistoryIfEnabled(buffer: AVAudioPCMBuffer, modelId: String) -> UUID? {
+        guard preferences.saveHistory else { return nil }
+        let entry = history.add(
+            samples: buffer.monoSamples(),
+            modelId: modelId,
+            modelName: modelName(for: modelId)
+        )
+        pendingHistoryID = entry.id
+        return entry.id
+    }
+
+    /// Records the pipeline's outcome on the pending entry: text →
+    /// success; no text + failed → failed (audio kept); no text, not
+    /// failed (empty result) → removed.
+    private func settleHistory(_ id: UUID?, text: String?, failed: Bool) {
+        guard let id else { return }
+        if pendingHistoryID == id { pendingHistoryID = nil }
+        if let text {
+            history.update(id: id, text: text, status: .success)
+        } else if failed {
+            history.update(id: id, text: nil, status: .failed)
+        } else {
+            history.delete(id: id)
+        }
+    }
+
+    private func modelName(for modelId: String) -> String {
+        modelManager.catalog.first(where: { $0.id == modelId })?.name ?? modelId
+    }
+
+    /// Models a history entry can be regenerated with right now:
+    /// installed local models and configured API models, in catalog
+    /// order.
+    func regenerationModels() -> [ModelEntry] {
+        modelManager.catalog.filter(isUsable)
+    }
+
+    private func isUsable(_ entry: ModelEntry) -> Bool {
+        if entry.isLocal {
+            return modelManager.isInstalled(entry.id) && localTranscribers[entry.id] != nil
+        }
+        return APITranscriber.provider(for: entry.id) != nil && apiModelIsConfigured(providerId: entry.id)
+    }
+
+    /// Re-transcribes a history entry's saved audio with `modelId`.
+    /// Updates the entry's text, model and status; never pastes and
+    /// never touches `lastTranscript`. Progress and errors are exposed
+    /// per entry on `HistoryStore` (`regeneratingIDs` /
+    /// `regenerateErrors`).
+    func regenerate(entryID: UUID, modelId: String) async {
+        // A pending entry is still being transcribed by its own
+        // dictation; that pipeline's settleHistory would overwrite or
+        // delete whatever a regenerate produced.
+        guard let entry = history.entry(id: entryID),
+              entry.status != .pending,
+              !history.regeneratingIDs.contains(entryID) else { return }
+        history.beginRegenerating(id: entryID)
+        var errorMessage: String?
+        defer { history.endRegenerating(id: entryID, error: errorMessage) }
+
+        guard let model = modelManager.catalog.first(where: { $0.id == modelId }), isUsable(model) else {
+            errorMessage = "Model isn't available"
+            return
+        }
+        guard let transcriber = resolveTranscriber(for: modelId) else {
+            errorMessage = "Model isn't available"
+            return
+        }
+        do {
+            let samples = try await history.loadSamples(for: entry)
+            guard let buffer = HistoryAudio.buffer(from: samples) else {
+                errorMessage = HistoryAudio.Failure.malformed.localizedDescription
+                return
+            }
+            print("[ora] regenerate model=\(modelId)")
+            let text = try await transcriber.transcribe(buffer)
+            if text.isEmpty {
+                errorMessage = "No speech detected"
+                return
+            }
+            history.update(id: entryID, text: text, status: .success, modelId: modelId, modelName: model.name)
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            errorMessage = "Audio file is missing"
+        } catch {
+            errorMessage = Self.regenerateMessage(for: error)
+        }
+    }
+
+    /// Inline row message for a failed regenerate.
+    static func regenerateMessage(for error: Error) -> String {
+        switch stateForPipelineError(error) {
+        case .error(.noModel): return "Model isn't downloaded"
+        case .error(.generic(let message)): return message
+        case .idle: return "No speech detected"
+        default: return transcriptionFailedMessage
         }
     }
 
@@ -931,7 +1071,7 @@ final class DictationCoordinator {
         return transcriber
     }
 
-    // MARK: - Live preview (panel overlay)
+    // MARK: - Live preview (transcription bubble)
 
     /// Whether the model selected *right now* is fast enough for the
     /// preview loop. Resolved just-in-time from the catalog, the same
@@ -943,9 +1083,10 @@ final class DictationCoordinator {
     }
 
     /// Spins up the preview loop on entry to `.recording` — but only
-    /// when the panel style is selected AND the model supports preview
-    /// (spec §5.3: style + capability are both required; pill or an
-    /// unsupported model means zero new work on the existing path).
+    /// when "Show live transcription" is on AND the model supports
+    /// preview (spec §5.3: setting + capability are both required; the
+    /// setting off or an unsupported model means zero new work on the
+    /// existing path).
     ///
     /// The engine reuses the exact transcriber instance the final pass
     /// will use, so the shared LazyLoader loads the model once. Note
@@ -957,11 +1098,11 @@ final class DictationCoordinator {
     /// shortens the release-to-paste delay.
     private func startLivePreviewIfEligible() {
         stopLivePreview()
-        guard preferences.overlayStyle == .panel,
+        guard preferences.showLivePreview,
               selectedModelSupportsLivePreview() else {
             NSLog(
-                "[LivePreview] not eligible: style=%@ supports=%d",
-                preferences.overlayStyle.rawValue, selectedModelSupportsLivePreview() ? 1 : 0)
+                "[LivePreview] not eligible: enabled=%d supports=%d",
+                preferences.showLivePreview ? 1 : 0, selectedModelSupportsLivePreview() ? 1 : 0)
             return
         }
         let selectedId = preferences.selectedModelId ?? Preferences.defaultModelId
@@ -1018,8 +1159,9 @@ final class DictationCoordinator {
         if newState != .recording { stopLivePreview() }
 
         // Return finishes the dictation (and is consumed) only while
-        // .starting / .recording; everywhere else it reaches the app.
-        if Self.returnIsArmed(in: newState) {
+        // .starting / .recording, and only with the setting on;
+        // everywhere else it reaches the app.
+        if Self.returnIsArmed(in: newState, enabled: preferences.returnFinishesDictation) {
             keyMonitor.armReturn(allowedModifiers: Self.allowedReturnModifiers(
                 mode: preferences.activationMode, key: preferences.activationKey))
         } else {
@@ -1041,6 +1183,12 @@ final class DictationCoordinator {
             errorDismissTask?.cancel()
             errorDismissTask = nil
             keyMonitor.enable()
+            // A re-press inside the 2s error window finds the error's
+            // panel still up. Its layout was resolved for the error
+            // (an error-only pill, or no bubble because
+            // supportsLivePreview was false), so close it and let
+            // present() build this dictation's own layout.
+            if overlay.isShowing { overlay.hide() }
             // Fresh dictation: clear the previous partial and resolve
             // the model's preview capability just-in-time (same timing
             // as the model/device resolution at press) so the panel

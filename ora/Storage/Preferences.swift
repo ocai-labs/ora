@@ -18,37 +18,90 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-/// Which dictation overlay the user sees while recording.
-/// - `pill`: the original capsule at the top of the screen — waveform
-///   only, never runs live-preview inference.
-/// - `panel`: fixed-height panel at the bottom of the screen — small
-///   waveform plus live partial-transcript text (when the selected
-///   model supports it; otherwise renders compact, pill-like).
-/// See docs/2026-06-10-streaming-live-preview-spec.md §5.4/§6.
-enum OverlayStyle: String, CaseIterable, Identifiable {
-    case pill
-    case panel
+/// Where the recording pill sits while dictating. The live
+/// transcription bubble is always at the bottom, whichever is chosen.
+enum PillPosition: String, CaseIterable, Identifiable {
+    case top
+    case bottom
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .pill: "Pill"
-        case .panel: "Panel"
-        }
-    }
-
-    var description: String {
-        switch self {
-        case .pill: "A compact capsule at the top of the screen."
-        case .panel: "A panel at the bottom with live transcription preview."
+        case .top: "Top"
+        case .bottom: "Bottom"
         }
     }
 }
 
+/// Tint of the overlay glass (pill + live transcription bubble).
+/// `nil` hex = Automatic (untinted glass that follows Appearance).
+/// The presets are just named hex values; any other hex is a custom
+/// colour picked with the ColorPicker.
+enum OverlayTint {
+    struct Preset: Identifiable, Equatable {
+        let name: String
+        let hex: String
+        var id: String { hex }
+    }
+
+    static let presets: [Preset] = [
+        Preset(name: "Graphite", hex: "#8E8E93"),
+        Preset(name: "Blue", hex: "#0A84FF"),
+        Preset(name: "Purple", hex: "#BF5AF2"),
+        Preset(name: "Pink", hex: "#FF375F"),
+        Preset(name: "Orange", hex: "#FF9F0A"),
+        Preset(name: "Green", hex: "#30D158"),
+    ]
+
+    static let defaultStrength = 0.3
+    static let strengthRange: ClosedRange<Double> = 0...0.9
+
+    /// "#RRGGBB" → sRGB components in 0...1, or nil if malformed.
+    static func components(fromHex hex: String) -> (red: Double, green: Double, blue: Double)? {
+        var digits = hex.trimmingCharacters(in: .whitespaces)
+        if digits.hasPrefix("#") { digits.removeFirst() }
+        guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return nil }
+        return (
+            Double((value >> 16) & 0xFF) / 255,
+            Double((value >> 8) & 0xFF) / 255,
+            Double(value & 0xFF) / 255
+        )
+    }
+
+    /// sRGB components (clamped to 0...1) → "#RRGGBB".
+    static func hex(red: Double, green: Double, blue: Double) -> String {
+        func byte(_ v: Double) -> Int { Int((min(1, max(0, v)) * 255).rounded()) }
+        return String(format: "#%02X%02X%02X", byte(red), byte(green), byte(blue))
+    }
+
+    /// WCAG relative luminance of an sRGB colour (0 = black, 1 = white).
+    static func relativeLuminance(red: Double, green: Double, blue: Double) -> Double {
+        func linear(_ c: Double) -> Double {
+            c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+    }
+
+    /// Whether overlay foreground (waveform, spinner, text) should be
+    /// light (white) rather than dark. Approximates the surface as the
+    /// untinted glass's own brightness for the colour scheme blended
+    /// with the tint at `strength`; light foreground below the
+    /// midpoint. With Automatic (`tintLuminance == nil`) this reduces
+    /// to the colour scheme — i.e. `.primary`.
+    static func prefersLightForeground(tintLuminance: Double?, strength: Double, isDark: Bool) -> Bool {
+        let base = isDark ? 0.08 : 0.85
+        guard let tintLuminance else { return isDark }
+        let s = min(max(strength, 0), 1)
+        let surface = base * (1 - s) + tintLuminance * s
+        return surface < 0.4
+    }
+}
+
 /// How the activation hotkey arms and disarms the recorder.
-/// - `hold`: hold the key, release to stop (the original default).
-/// - `toggle`: first press starts recording, second press stops it.
+/// - `hold`: hold the key, release to stop.
+/// - `toggle`: first press starts recording, second press stops it
+///   (the default for new installs).
 enum ActivationMode: String, CaseIterable, Identifiable {
     case hold
     case toggle
@@ -93,7 +146,16 @@ final class Preferences {
         static let notificationSoundEnabled = "ora.notificationSoundEnabled"
         static let notificationSoundName = "ora.notificationSoundName"
         static let selectedInputDeviceUID = "ora.selectedInputDeviceUID"
-        static let overlayStyle = "ora.overlayStyle"
+        /// Legacy Pill/Panel display style — read once for migration
+        /// to `showLivePreview`, then removed.
+        static let legacyOverlayStyle = "ora.overlayStyle"
+        static let showRecordingPill = "ora.showRecordingPill"
+        static let pillPosition = "ora.pillPosition"
+        static let showLivePreview = "ora.showLivePreview"
+        static let overlayTintHex = "ora.overlayTintHex"
+        static let overlayTintStrength = "ora.overlayTintStrength"
+        static let returnFinishesDictation = "ora.returnFinishesDictation"
+        static let saveHistory = "ora.saveHistory"
         static let nemotronUnifiedLanguage = "ora.nemotronUnifiedLanguage"
         static let nemotronStreamingLanguage = "ora.nemotronStreamingLanguage"
     }
@@ -149,8 +211,55 @@ final class Preferences {
         didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) }
     }
 
-    var overlayStyle: OverlayStyle {
-        didSet { defaults.set(overlayStyle.rawValue, forKey: Key.overlayStyle) }
+    /// Show the waveform pill while recording / transcribing. Errors
+    /// always show a pill regardless, so failures are never invisible.
+    var showRecordingPill: Bool {
+        didSet { defaults.set(showRecordingPill, forKey: Key.showRecordingPill) }
+    }
+
+    var pillPosition: PillPosition {
+        didSet { defaults.set(pillPosition.rawValue, forKey: Key.pillPosition) }
+    }
+
+    /// Show the live transcription bubble at the bottom of the screen
+    /// (and run the live-preview engine) when the selected model
+    /// supports it.
+    var showLivePreview: Bool {
+        didSet { defaults.set(showLivePreview, forKey: Key.showLivePreview) }
+    }
+
+    /// Overlay glass tint as "#RRGGBB"; nil = Automatic (untinted).
+    var overlayTintHex: String? {
+        didSet {
+            if let overlayTintHex {
+                defaults.set(overlayTintHex, forKey: Key.overlayTintHex)
+            } else {
+                defaults.removeObject(forKey: Key.overlayTintHex)
+            }
+        }
+    }
+
+    /// How strongly the tint colours the glass, 0...0.9.
+    var overlayTintStrength: Double {
+        didSet { defaults.set(overlayTintStrength, forKey: Key.overlayTintStrength) }
+    }
+
+    /// Whether Return finishes (stops + pastes) a recording. The Return
+    /// press is consumed, so it never reaches the focused app.
+    var returnFinishesDictation: Bool {
+        didSet { defaults.set(returnFinishesDictation, forKey: Key.returnFinishesDictation) }
+    }
+
+    /// Keep the last `HistoryStore.maxEntries` recordings + transcripts
+    /// on this Mac (History page). Turning it off is paired with
+    /// clearing the history in the UI.
+    var saveHistory: Bool {
+        didSet { defaults.set(saveHistory, forKey: Key.saveHistory) }
+    }
+
+    func resetOverlayGlass() {
+        overlayTintHex = nil
+        overlayTintStrength = OverlayTint.defaultStrength
     }
 
     /// Fired when `nemotronUnifiedLanguage` changes. DictationCoordinator
@@ -229,7 +338,9 @@ final class Preferences {
            let mode = ActivationMode(rawValue: raw) {
             self.activationMode = mode
         } else {
-            self.activationMode = .hold
+            // Toggle is the default for new installs; a stored
+            // choice (including an explicit Hold) is kept above.
+            self.activationMode = .toggle
         }
         if let raw = defaults.string(forKey: Key.appearance),
            let mode = AppearanceMode(rawValue: raw) {
@@ -237,12 +348,46 @@ final class Preferences {
         } else {
             self.appearance = .system
         }
-        if let raw = defaults.string(forKey: Key.overlayStyle),
-           let style = OverlayStyle(rawValue: raw) {
-            self.overlayStyle = style
+        self.showRecordingPill = (defaults.object(forKey: Key.showRecordingPill) as? Bool) ?? true
+        if let raw = defaults.string(forKey: Key.pillPosition),
+           let position = PillPosition(rawValue: raw) {
+            self.pillPosition = position
         } else {
-            self.overlayStyle = .pill
+            self.pillPosition = .bottom
         }
+        if let stored = defaults.object(forKey: Key.showLivePreview) as? Bool {
+            self.showLivePreview = stored
+        } else if let legacy = defaults.string(forKey: Key.legacyOverlayStyle) {
+            // Pre-0.8 "Dictation Display" picker: Panel was the live
+            // preview style, Pill the waveform-only one. Persist the
+            // migrated value and drop the old key so this runs once.
+            let migrated = legacy == "panel"
+            self.showLivePreview = migrated
+            defaults.set(migrated, forKey: Key.showLivePreview)
+            defaults.removeObject(forKey: Key.legacyOverlayStyle)
+        } else {
+            // Nothing stored: an existing user who never touched the old
+            // picker was on its default, Pill (no live preview); keep
+            // that. New installs get the live transcription bubble.
+            // Persisted right away: otherwise a new install would flip
+            // to "existing user" once onboarding completes.
+            let resolved = !defaults.bool(forKey: Key.hasCompletedOnboarding)
+            self.showLivePreview = resolved
+            defaults.set(resolved, forKey: Key.showLivePreview)
+        }
+        if let hex = defaults.string(forKey: Key.overlayTintHex),
+           OverlayTint.components(fromHex: hex) != nil {
+            self.overlayTintHex = hex
+        } else {
+            self.overlayTintHex = nil
+        }
+        if let strength = defaults.object(forKey: Key.overlayTintStrength) as? Double {
+            self.overlayTintStrength = min(max(strength, OverlayTint.strengthRange.lowerBound), OverlayTint.strengthRange.upperBound)
+        } else {
+            self.overlayTintStrength = OverlayTint.defaultStrength
+        }
+        self.returnFinishesDictation = (defaults.object(forKey: Key.returnFinishesDictation) as? Bool) ?? true
+        self.saveHistory = (defaults.object(forKey: Key.saveHistory) as? Bool) ?? true
         self.notificationSoundEnabled = (defaults.object(forKey: Key.notificationSoundEnabled) as? Bool) ?? true
         self.notificationSoundName = defaults.string(forKey: Key.notificationSoundName) ?? "Pop"
         self.selectedInputDeviceUID = defaults.string(forKey: Key.selectedInputDeviceUID)

@@ -242,6 +242,16 @@ struct DictationCoordinatorDecisionTests {
         #expect(!DictationCoordinator.returnIsArmed(in: .transcribing))
     }
 
+    @Test("Return is never armed with \"Return finishes dictation\" off")
+    func returnDisabledNeverArms() {
+        let states: [DictationCoordinator.State] = [
+            .idle, .starting, .recording, .transcribing, .error(.generic("x")),
+        ]
+        for state in states {
+            #expect(!DictationCoordinator.returnIsArmed(in: state, enabled: false))
+        }
+    }
+
     @Test("hold mode allows the activation key's modifier with Return; toggle allows none")
     func allowedReturnModifiers() {
         #expect(DictationCoordinator.allowedReturnModifiers(mode: .hold, key: .rightCommand) == .maskCommand)

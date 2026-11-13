@@ -2,8 +2,13 @@
 //  PanelOverlayView.swift
 //  ora
 //
-//  Bottom-of-screen "panel" overlay style with the live transcription
-//  preview. Two separate pieces, stacked and bottom-anchored:
+//  Bottom-of-screen overlay: the live transcription bubble and/or the
+//  pill. Which pieces it draws comes from OverlayLayout (Settings →
+//  Interface): with the pill at the bottom it's the classic stack below;
+//  with the pill at the top it's the bubble alone; with the pill hidden
+//  the bubble carries a compact inline waveform, and a stand-in pill
+//  shows until the first partial (or on errors). The full stack is two
+//  separate pieces, bottom-anchored:
 //
 //   - the pill (OraPill — the same 72×30 capsule as the top style and
 //     as the TypeScript Ora), which never moves or resizes while
@@ -32,6 +37,10 @@ import SwiftUI
 
 struct PanelOverlayView: View {
     var state: RecordingOverlayState
+    /// How this panel treats the pill — see OverlayLayout.BottomPill.
+    var pill: OverlayLayout.BottomPill = .always
+    /// Whether the live transcription bubble may appear at all.
+    var bubbleEnabled: Bool = true
     /// Kept for RecordingOverlayController's API. The pill no longer has
     /// a hover ×: cancelling is ESC only, as in the TypeScript version.
     var onCancel: (() -> Void)? = nil
@@ -58,6 +67,22 @@ struct PanelOverlayView: View {
     /// Fixed text column width = bubble width minus its padding. The
     /// text always wraps at this width, so the bubble never re-wraps.
     private static let maxTextWidth: CGFloat = bubbleWidth - 2 * bubbleHorizontalPadding
+
+    /// Inline waveform/spinner column used when the pill is hidden
+    /// (`.standIn`): the waveform's 27pt bar group plus a gap.
+    private static let inlineIndicatorWidth: CGFloat = 27
+    private static let inlineIndicatorGap: CGFloat = 10
+
+    private var hasInlineIndicator: Bool { pill == .standIn }
+
+    /// The text column for this layout: the full width, or narrower to
+    /// make room for the inline indicator. Still constant for the
+    /// lifetime of the view, so text never re-wraps mid-stream.
+    private var textColumnWidth: CGFloat {
+        hasInlineIndicator
+            ? Self.maxTextWidth - Self.inlineIndicatorWidth - Self.inlineIndicatorGap
+            : Self.maxTextWidth
+    }
 
     private static let transcriptFont = Font.system(size: 13, weight: .medium, design: .rounded)
 
@@ -178,7 +203,10 @@ struct PanelOverlayView: View {
                             .combined(with: .offset(y: 6))
                     )
             }
-            OraPill(phase: state.phase, audioLevel: state.audioLevel)
+            if showsPill {
+                OraPill(phase: state.phase, audioLevel: state.audioLevel)
+                    .transition(.opacity)
+            }
         }
         .animation(.spring(response: 0.34, dampingFraction: 0.78), value: showsBubble)
         .padding(.bottom, Self.bottomInset)
@@ -218,10 +246,21 @@ struct PanelOverlayView: View {
     /// while the spinner runs). Errors drop it; the pill carries the
     /// error on its own.
     private var showsBubble: Bool {
-        guard state.supportsLivePreview, !state.partialText.isEmpty else { return false }
+        guard bubbleEnabled, state.supportsLivePreview, !state.partialText.isEmpty else { return false }
         switch state.phase {
         case .recording, .transcribing: return true
         default: return false
+        }
+    }
+
+    /// The pill shows always, never (it's in the top panel), or — when
+    /// hidden by preference — only while the bubble isn't up, so the
+    /// user still sees that recording is on (and errors stay visible).
+    private var showsPill: Bool {
+        switch pill {
+        case .always: return true
+        case .never: return false
+        case .standIn: return !showsBubble
         }
     }
 
@@ -229,11 +268,31 @@ struct PanelOverlayView: View {
 
     private var bubble: some View {
         let shape = RoundedRectangle(cornerRadius: Self.bubbleCornerRadius, style: .continuous)
-        return transcriptTail
+        return HStack(alignment: .top, spacing: Self.inlineIndicatorGap) {
+            if hasInlineIndicator {
+                inlineIndicator
+            }
+            transcriptTail
+        }
             .padding(.horizontal, Self.bubbleHorizontalPadding)
             .padding(.vertical, Self.bubbleVerticalPadding)
             .frame(width: Self.bubbleWidth)
             .oraOverlaySurface(shape)
+    }
+
+    /// Compact recording state inside the bubble when there's no pill:
+    /// the waveform while recording, the spinner while transcribing,
+    /// centred on the first text line.
+    @ViewBuilder
+    private var inlineIndicator: some View {
+        Group {
+            if state.phase == .transcribing {
+                PillSpinner()
+            } else {
+                PillWaveformView(audioLevel: state.audioLevel)
+            }
+        }
+        .frame(width: Self.inlineIndicatorWidth, height: 17)
     }
 
     /// Tail-follow live text in a fixed-width column. The column width is
@@ -298,7 +357,7 @@ struct PanelOverlayView: View {
         // line stays pinned and older lines hard-clip out the top
         // (`.clipped()`, no fade mask).
         .frame(
-            width: Self.maxTextWidth,
+            width: textColumnWidth,
             height: visibleTextHeight,
             alignment: textOverflows ? .bottomLeading : .topLeading
         )
@@ -364,7 +423,7 @@ struct PanelOverlayView: View {
                     )
                 }
             )
-            .frame(width: Self.maxTextWidth, alignment: .topLeading)
+            .frame(width: textColumnWidth, alignment: .topLeading)
     }
 
     /// The SAME partial, capped at `maxLines` → the real per-script window
@@ -387,7 +446,7 @@ struct PanelOverlayView: View {
                     )
                 }
             )
-            .frame(width: Self.maxTextWidth, alignment: .topLeading)
+            .frame(width: textColumnWidth, alignment: .topLeading)
     }
 
     /// One layer of the diff stack: a full string as a single
@@ -397,7 +456,9 @@ struct PanelOverlayView: View {
     /// belong in the paragraph.
     private func partialLayer(text: String, stableCount: Int, showsSettled: Bool) -> some View {
         var attributed = AttributedString(text)
-        let visible = Color.white.opacity(0.95)
+        // Visible runs carry no colour of their own, so they inherit the
+        // overlay surface's foreground (see oraOverlaySurface).
+        let visible: Color? = nil
         let boundary = attributed.characters.index(
             attributed.startIndex,
             offsetBy: min(stableCount, attributed.characters.count)

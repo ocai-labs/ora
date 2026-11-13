@@ -6,26 +6,37 @@
 //  (src/renderer/overlay/Pill.tsx + src/core/dictation/waveform.ts),
 //  which itself follows the Codex desktop global-dictation capsule:
 //
-//   - recording / transcribing: a 72×30 opaque black capsule with a
-//     hairline white/15% border. Recording draws 6 bars; transcribing
-//     swaps them for a spinner. Same size in both, only content changes.
+//   - recording / transcribing: a 72×30 capsule. Recording draws 6
+//     bars; transcribing swaps them for a spinner. Same size in both,
+//     only content changes.
 //   - error: grows to fit one short label (h 32).
 //   - no hover ×: cancelling is ESC only, as in the TS version — a
 //     72pt capsule has no room for a control, and the × used to shove
 //     the waveform sideways.
 //
-//  Shared by both overlay styles (top pill, bottom panel with the live
-//  preview bubble), so the two never drift apart again.
+//  Shared by every overlay layout (top pill, bottom pill, bottom
+//  bubble), so they never drift apart again.
 //
 //  Surface (`oraOverlaySurface`, also used by the preview bubble):
-//  macOS 26+ gets a dark frosted glass; older systems keep the opaque
-//  black. Note this is NOT full "Liquid Glass": measured on macOS 27.2,
-//  Apple's glass only refracts / rim-lights content inside its own
-//  window. Over other apps — where this overlay always floats — it
-//  renders as an adaptive blur + tint, whichever API hosts it
-//  (`.glassEffect`, `NSGlassEffectView`, as content view or not).
+//  macOS 26+ uses native Liquid Glass (`.glassEffect(.regular)`),
+//  untinted for Automatic or tinted with the user's colour at the
+//  chosen strength (Settings → Interface → Overlay Glass). It follows
+//  the app's Appearance (the NSPanel inherits NSApp.appearance), so it
+//  is light glass in Light mode and dark glass in Dark mode. Older
+//  systems get a blurred material with the tint overlaid. Note that
+//  over other apps' windows — where this overlay always floats — macOS
+//  renders Liquid Glass as an adaptive blur + tint with no lensing:
+//  measured on macOS 27.2, the glass only refracts / rim-lights content
+//  inside its own window, whichever API hosts it (`.glassEffect`,
+//  `NSGlassEffectView`, as content view or not).
+//
+//  Foreground (bars, spinner, text, error label) comes from the surface
+//  via `\.oraOverlayForeground`: the colour scheme's primary for
+//  Automatic, or white / black from the tint's luminance once the tint
+//  is strong enough to dominate (OverlayTint.prefersLightForeground).
 //
 
+import AppKit
 import SwiftUI
 
 // MARK: - Waveform model (port of core/dictation/waveform.ts)
@@ -131,6 +142,7 @@ struct PillWaveformView: View {
 
     @State private var model = PillWaveformModel()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.oraOverlayForeground) private var foreground
 
     private static let barWidth: CGFloat = 2
     private static let barPitch: CGFloat = 5
@@ -151,7 +163,7 @@ struct PillWaveformView: View {
                         y: (size.height - h) / 2,
                         width: Self.barWidth,
                         height: h)
-                    context.fill(Path(roundedRect: rect, cornerRadius: Self.barWidth / 2), with: .color(.white.opacity(0.9)))
+                    context.fill(Path(roundedRect: rect, cornerRadius: Self.barWidth / 2), with: .color(foreground.opacity(0.9)))
                 }
             }
         }
@@ -173,14 +185,15 @@ struct PillWaveformView: View {
 // MARK: - Spinner
 
 /// Stand-in for lucide's LoaderCircle + animate-spin: a 3/4 ring,
-/// 14pt, white/70%, one turn per second.
+/// 14pt, foreground/70%, one turn per second.
 struct PillSpinner: View {
     @State private var spinning = false
+    @Environment(\.oraOverlayForeground) private var foreground
 
     var body: some View {
         Circle()
             .trim(from: 0, to: 0.75)
-            .stroke(.white.opacity(0.7), style: StrokeStyle(lineWidth: 1.75, lineCap: .round))
+            .stroke(foreground.opacity(0.7), style: StrokeStyle(lineWidth: 1.75, lineCap: .round))
             .frame(width: 12, height: 12)
             .rotationEffect(.degrees(spinning ? 360 : 0))
             .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: spinning)
@@ -197,12 +210,7 @@ struct OraPill: View {
 
     @State private var appeared = false
 
-    private var isError: Bool {
-        switch phase {
-        case .errorNoMic, .errorNoAccessibility, .errorNoModel, .errorGeneric: return true
-        case .recording, .transcribing, .done: return false
-        }
-    }
+    private var isError: Bool { phase.isError }
 
     /// Recording and done share one key, so the waveform (and its
     /// opening ripple) isn't remounted for a state that changes nothing
@@ -259,6 +267,8 @@ private struct PillErrorContent: View {
     let color: Color
     let text: String
 
+    @Environment(\.oraOverlayForeground) private var foreground
+
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
@@ -266,7 +276,7 @@ private struct PillErrorContent: View {
                 .foregroundStyle(color)
             Text(text)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(foreground)
                 .lineLimit(1)
                 .fixedSize()
         }
@@ -275,9 +285,45 @@ private struct PillErrorContent: View {
 
 // MARK: - Surface
 
+extension EnvironmentValues {
+    /// Foreground for overlay content (waveform, spinner, text), set by
+    /// `oraOverlaySurface` from the glass tint and colour scheme.
+    @Entry var oraOverlayForeground: Color = .white
+
+    /// True inside the Settings demo canvas: the pre-macOS 26 blur
+    /// samples the demo's own backdrop instead of whatever is behind the
+    /// Settings window.
+    @Entry var oraOverlayBlendsWithinWindow: Bool = false
+}
+
+/// The overlay glass settings, resolved for drawing.
+struct OverlayGlassStyle {
+    /// nil = Automatic (untinted glass).
+    var tint: Color?
+    var tintLuminance: Double?
+    var strength: Double
+
+    @MainActor
+    static func current(_ preferences: Preferences = .shared) -> OverlayGlassStyle {
+        guard let hex = preferences.overlayTintHex,
+              let rgb = OverlayTint.components(fromHex: hex) else {
+            return OverlayGlassStyle(tint: nil, tintLuminance: nil, strength: preferences.overlayTintStrength)
+        }
+        return OverlayGlassStyle(
+            tint: Color(.sRGB, red: rgb.red, green: rgb.green, blue: rgb.blue),
+            tintLuminance: OverlayTint.relativeLuminance(red: rgb.red, green: rgb.green, blue: rgb.blue),
+            strength: preferences.overlayTintStrength)
+    }
+
+    func foreground(isDark: Bool) -> Color {
+        OverlayTint.prefersLightForeground(tintLuminance: tintLuminance, strength: strength, isDark: isDark)
+            ? .white : .black
+    }
+}
+
 extension View {
-    /// The pill / bubble surface. See the file header for why the macOS
-    /// 26+ variant is a dark frosted glass and not lensing Liquid Glass.
+    /// The pill / bubble surface. See the file header for what the
+    /// glass does (and doesn't) look like over other apps.
     func oraOverlaySurface<S: InsettableShape>(_ shape: S) -> some View {
         modifier(OraOverlaySurface(shape: shape))
     }
@@ -286,30 +332,61 @@ extension View {
 private struct OraOverlaySurface<S: InsettableShape>: ViewModifier {
     let shape: S
 
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.oraOverlayBlendsWithinWindow) private var blendsWithinWindow
+
     func body(content: Content) -> some View {
+        // Reads Preferences.shared inside body, so Observation re-renders
+        // the overlay (and the Settings demo) when the tint changes.
+        let glass = OverlayGlassStyle.current()
+        let foreground = glass.foreground(isDark: colorScheme == .dark)
+        let styled = content
+            .environment(\.oraOverlayForeground, foreground)
+            .foregroundStyle(foreground)
         if #available(macOS 26, *) {
-            // `.clear` glass over a 55 % black fill: the darkest variant
-            // that still lets the background through. Compared side by
-            // side over a light, busy desktop, `.regular` (with or
-            // without tint) stayed mid-grey and `.clear.tint(black)`
-            // looked muddy; this one keeps white bars / text clearly
-            // legible. Dark colour scheme so the glass never goes light
-            // in Light mode. No extra shadow (the glass brings its own
-            // depth) and no compositingGroup — flattening offscreen can
-            // break the glass's backdrop sampling.
-            content
-                .background(shape.fill(.black.opacity(0.55)))
-                .glassEffect(.clear, in: shape)
-                .overlay(shape.strokeBorder(.white.opacity(0.12), lineWidth: 1))
-                .environment(\.colorScheme, .dark)
+            // Native Liquid Glass. No extra fill, shadow or
+            // compositingGroup — the glass brings its own depth, and
+            // flattening offscreen can break its backdrop sampling.
+            styled.glassEffect(Self.glass(glass), in: shape)
         } else {
-            // Pre-26: the opaque black pill, hairline rim so it still
-            // reads on dark backgrounds.
-            content
-                .background(shape.fill(.black))
-                .overlay(shape.strokeBorder(.white.opacity(0.15), lineWidth: 1))
-                .compositingGroup()
-                .shadow(color: .black.opacity(0.2), radius: 7, x: 0, y: 5)
+            styled
+                .background {
+                    ZStack {
+                        OverlayBlurView(blendsWithinWindow: blendsWithinWindow)
+                        if let tint = glass.tint {
+                            Rectangle().fill(tint.opacity(glass.strength))
+                        }
+                    }
+                    .clipShape(shape)
+                }
+                // Hairline rim so the blur still reads over a backdrop
+                // of the same brightness.
+                .overlay(shape.strokeBorder(foreground.opacity(0.12), lineWidth: 1))
+                .shadow(color: .black.opacity(0.15), radius: 7, x: 0, y: 5)
         }
+    }
+
+    @available(macOS 26, *)
+    private static func glass(_ style: OverlayGlassStyle) -> Glass {
+        guard let tint = style.tint else { return .regular }
+        return .regular.tint(tint.opacity(style.strength))
+    }
+}
+
+/// Pre-macOS 26 backdrop: a vibrancy blur that follows the effective
+/// appearance (light in Light mode, dark in Dark mode).
+private struct OverlayBlurView: NSViewRepresentable {
+    var blendsWithinWindow: Bool
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .popover
+        view.state = .active
+        view.blendingMode = blendsWithinWindow ? .withinWindow : .behindWindow
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {
+        view.blendingMode = blendsWithinWindow ? .withinWindow : .behindWindow
     }
 }
