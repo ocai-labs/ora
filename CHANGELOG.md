@@ -9,7 +9,7 @@ Release notes for a given version are extracted from this file by
 `scripts/create-release.sh` and posted to the matching GitHub Release,
 so keep each version section self-contained and user-facing.
 
-## [Unreleased]
+## [0.7.0] - 2026-11-12
 
 ### Added
 - **NVIDIA Nemotron 3.5 ASR Streaming 0.6B** local model for Asian and
