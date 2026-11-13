@@ -59,10 +59,11 @@ struct InterfacePage: View {
                     OverlayTintPicker(hex: $preferences.overlayTintHex)
                 }
 
+                // Also active under Automatic, where it sets how solid
+                // the neutral glass is.
                 Slider(value: $preferences.overlayTintStrength, in: OverlayTint.strengthRange) {
                     Text("Tint strength")
                 }
-                .disabled(preferences.overlayTintHex == nil)
 
                 Button("Reset to Default") {
                     preferences.resetOverlayGlass()

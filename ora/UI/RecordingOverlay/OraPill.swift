@@ -18,11 +18,12 @@
 //  bubble), so they never drift apart again.
 //
 //  Surface (`oraOverlaySurface`, also used by the preview bubble):
-//  macOS 26+ uses native Liquid Glass (`.glassEffect(.regular)`),
-//  untinted for Automatic or tinted with the user's colour at the
-//  chosen strength (Settings → Interface → Overlay Glass). It follows
-//  the app's Appearance (the NSPanel inherits NSApp.appearance), so it
-//  is light glass in Light mode and dark glass in Dark mode. Older
+//  macOS 26+ uses native Liquid Glass (`.glassEffect(.regular)`) with
+//  a colour layer on top at the chosen strength: the user's tint, or a
+//  neutral matching Light/Dark for Automatic (Settings → Interface →
+//  Overlay Glass). It follows the app's Appearance (the NSPanel
+//  inherits NSApp.appearance), so it is light glass in Light mode and
+//  dark glass in Dark mode. Older
 //  systems get a blurred material with the tint overlaid. Note that
 //  over other apps' windows — where this overlay always floats — macOS
 //  renders Liquid Glass as an adaptive blur + tint with no lensing:
@@ -315,6 +316,13 @@ struct OverlayGlassStyle {
             strength: preferences.overlayTintStrength)
     }
 
+    /// The colour layer drawn over the glass at `strength`: the tint,
+    /// or for Automatic a neutral that matches the colour scheme (so
+    /// the slider sets how solid the surface is).
+    func fill(isDark: Bool) -> Color {
+        (tint ?? (isDark ? .black : .white)).opacity(strength)
+    }
+
     func foreground(isDark: Bool) -> Color {
         OverlayTint.prefersLightForeground(tintLuminance: tintLuminance, strength: strength, isDark: isDark)
             ? .white : .black
@@ -343,19 +351,25 @@ private struct OraOverlaySurface<S: InsettableShape>: ViewModifier {
         let styled = content
             .environment(\.oraOverlayForeground, foreground)
             .foregroundStyle(foreground)
+        let isDark = colorScheme == .dark
         if #available(macOS 26, *) {
-            // Native Liquid Glass. No extra fill, shadow or
-            // compositingGroup — the glass brings its own depth, and
-            // flattening offscreen can break its backdrop sampling.
-            styled.glassEffect(Self.glass(glass), in: shape)
+            // Native, untinted Liquid Glass with our own colour layer on
+            // top. The strength used to go through `Glass.tint(_:)` as the
+            // colour's alpha, but the system applies its own tint
+            // intensity and the slider made little visible change. The
+            // fill is part of the content, which `.glassEffect` draws the
+            // glass behind. No shadow or compositingGroup — the glass
+            // brings its own depth, and flattening offscreen can break
+            // its backdrop sampling.
+            styled
+                .background(shape.fill(glass.fill(isDark: isDark)))
+                .glassEffect(.regular, in: shape)
         } else {
             styled
                 .background {
                     ZStack {
                         OverlayBlurView(blendsWithinWindow: blendsWithinWindow)
-                        if let tint = glass.tint {
-                            Rectangle().fill(tint.opacity(glass.strength))
-                        }
+                        Rectangle().fill(glass.fill(isDark: isDark))
                     }
                     .clipShape(shape)
                 }
@@ -364,12 +378,6 @@ private struct OraOverlaySurface<S: InsettableShape>: ViewModifier {
                 .overlay(shape.strokeBorder(foreground.opacity(0.12), lineWidth: 1))
                 .shadow(color: .black.opacity(0.15), radius: 7, x: 0, y: 5)
         }
-    }
-
-    @available(macOS 26, *)
-    private static func glass(_ style: OverlayGlassStyle) -> Glass {
-        guard let tint = style.tint else { return .regular }
-        return .regular.tint(tint.opacity(style.strength))
     }
 }
 
