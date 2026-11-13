@@ -57,7 +57,9 @@ the models, and your data.
   both let you lock the one you speak (say, French), so it doesn't drift into
   English words mid-sentence. Punctuation is built in.
 - **Push-to-talk or toggle** — hold the hotkey to dictate, or press once to
-  start and again to stop. Cancel any in-flight dictation with **ESC**.
+  start and again to stop. **Return** also finishes a recording (it isn't
+  passed on to the app, so a chat box won't send an empty message). Cancel
+  any in-flight dictation with **ESC**.
 - **Menu-bar app** — no Dock clutter, no window to manage; just a status-bar icon.
   Its menu has **Copy Last Transcription** in case a paste lands in the wrong place.
 - **Private by default** — local models mean zero network calls for

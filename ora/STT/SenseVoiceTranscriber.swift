@@ -24,10 +24,21 @@
 //
 //  ## Long recordings
 //
-//  The encoder's largest input bucket is ~108 s; FluidAudio truncates
-//  anything longer. We transcribe longer buffers in ≤ 90 s pieces and
-//  join them, so a long dictation loses nothing (a word cut at a piece
-//  boundary may come out slightly off).
+//  The hard limit is the CoreML *preprocessor*, not the encoder: its
+//  waveform input is declared `RangeDims [3200, 480000]` samples, i.e.
+//  0.2 s .. 30 s at 16 kHz, and anything outside that throws (the
+//  encoder's ~108 s bucket never comes into play). Before this was
+//  known, pieces were 90 s, so every dictation over 30 s failed — and
+//  the live preview froze at the 30 s mark for the same reason.
+//
+//  `planPieces` keeps any buffer of ≤ 30 s whole and splits longer ones
+//  into pieces of at most 25 s, cutting at the quietest 20 ms frame in
+//  the 5 s before each nominal boundary so a cut lands in a pause
+//  rather than mid-word where possible. Because each cut piece is
+//  ≤ 25 s and only made while > 30 s remain, the final piece is always
+//  > 5 s — no piece ever drops below the 0.2 s floor. A lone buffer
+//  shorter than the floor is zero-padded up to it. Pieces are joined
+//  with `join` (no space next to CJK text).
 //
 
 import AVFoundation
@@ -40,8 +51,20 @@ final class SenseVoiceTranscriber: Transcriber {
     /// FunASR's `withitn` text-norm query (punctuation + ITN on).
     nonisolated private static let textNormWithITN: Int32 = 14
 
-    /// 90 s at 16 kHz — comfortably below the encoder's ~108 s bucket.
-    nonisolated private static let maxPieceSamples = 90 * 16_000
+    /// The preprocessor's waveform bounds (`RangeDims [3200, 480000]`):
+    /// 0.2 s .. 30 s at 16 kHz. See "Long recordings".
+    nonisolated static let minPieceSamples = 3_200
+    nonisolated static let maxPieceSamples = 480_000
+
+    /// Nominal piece length when a buffer must be split: 25 s, leaving
+    /// 5 s of headroom under the 30 s limit for the final piece.
+    nonisolated static let targetPieceSamples = 25 * 16_000
+
+    /// How far before a nominal boundary to look for a pause: 5 s.
+    nonisolated static let cutSearchSamples = 5 * 16_000
+
+    /// Frame size for the pause search: 20 ms.
+    nonisolated static let energyFrameSamples = 320
 
     private let downloader: FluidAudioDownloader
     private let loader = LazyLoader<SenseVoiceManager>()
@@ -59,15 +82,19 @@ final class SenseVoiceTranscriber: Transcriber {
         let manager = try await ensureLoaded()
         try Task.checkCancellation()
 
+        let ranges = Self.planPieces(count: samples.count) { window in
+            Self.quietestPoint(in: samples, within: window)
+        }
+
         do {
             var pieces: [String] = []
-            var start = 0
-            while start < samples.count {
+            for range in ranges {
                 try Task.checkCancellation()
-                let end = min(start + Self.maxPieceSamples, samples.count)
-                let text = try await manager.transcribe(audio: Array(samples[start..<end]))
-                pieces.append(text)
-                start = end
+                var piece = Array(samples[range])
+                if piece.count < Self.minPieceSamples {
+                    piece.append(contentsOf: repeatElement(0, count: Self.minPieceSamples - piece.count))
+                }
+                pieces.append(try await manager.transcribe(audio: piece))
             }
             return Self.join(pieces)
         } catch is CancellationError {
@@ -75,6 +102,77 @@ final class SenseVoiceTranscriber: Transcriber {
         } catch {
             throw TranscriberError.inferenceFailed(error)
         }
+    }
+
+    // MARK: - Piece planning
+
+    /// Splits `count` samples into contiguous, gap-free ranges the
+    /// preprocessor accepts. Pure — see "Long recordings" for the rules.
+    ///
+    /// - A buffer of ≤ `maxLength` stays one piece (it may be shorter
+    ///   than `minLength`; the caller pads that lone case).
+    /// - Otherwise, while more than `maxLength` remains, a piece ending
+    ///   at `cut(window)` is emitted, where `window` is the closed range
+    ///   `[max(start + minLength, start + target − searchWindow),
+    ///   start + target]`; the result is clamped into that window.
+    ///   With `target + minLength ≤ maxLength`, the remainder is then
+    ///   always > `maxLength − target` ≥ `minLength`.
+    nonisolated static func planPieces(
+        count: Int,
+        target: Int = targetPieceSamples,
+        maxLength: Int = maxPieceSamples,
+        minLength: Int = minPieceSamples,
+        searchWindow: Int = cutSearchSamples,
+        cut: (ClosedRange<Int>) -> Int = { $0.upperBound }
+    ) -> [Range<Int>] {
+        precondition(minLength > 0 && target >= minLength && target + minLength <= maxLength,
+                     "planPieces needs minLength ≤ target ≤ maxLength − minLength")
+        guard count > 0 else { return [] }
+
+        var ranges: [Range<Int>] = []
+        var start = 0
+        while count - start > maxLength {
+            let upper = start + target
+            let lower = max(start + minLength, upper - max(searchWindow, 0))
+            let window = lower...upper
+            let end = min(max(cut(window), lower), upper)
+            ranges.append(start..<end)
+            start = end
+        }
+        ranges.append(start..<count)
+        return ranges
+    }
+
+    /// The middle of the lowest-energy `frame`-sample frame that fits
+    /// inside `window` (and inside `samples`) — a likely pause to cut
+    /// at. Ties go to the later frame, keeping pieces long. Falls back
+    /// to `window.upperBound` when no full frame fits.
+    nonisolated static func quietestPoint(
+        in samples: [Float],
+        within window: ClosedRange<Int>,
+        frame: Int = energyFrameSamples
+    ) -> Int {
+        let lower = max(window.lowerBound, 0)
+        let upper = min(window.upperBound, samples.count)
+        guard frame > 0, upper - lower >= frame else { return window.upperBound }
+
+        var bestStart = lower
+        var bestEnergy = Float.infinity
+        samples.withUnsafeBufferPointer { buffer in
+            var frameStart = lower
+            while frameStart + frame <= upper {
+                var energy: Float = 0
+                for i in frameStart..<(frameStart + frame) {
+                    energy += buffer[i] * buffer[i]
+                }
+                if energy <= bestEnergy {
+                    bestEnergy = energy
+                    bestStart = frameStart
+                }
+                frameStart += frame
+            }
+        }
+        return bestStart + frame / 2
     }
 
     /// Joins per-piece transcripts: no separator next to Chinese or

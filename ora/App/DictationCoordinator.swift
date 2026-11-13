@@ -38,6 +38,11 @@
 //  of seconds when CoreAudio is unhealthy; previously that hang was on
 //  the main thread and froze the menu bar. See Recorder.swift's header.
 //
+//  Return / keypad Enter during `starting` or `recording` finishes the
+//  dictation like the activation key does (same stop tail, same
+//  deferred-stop-after-boot path) and is consumed so the focused app
+//  doesn't also act on it. See DictationKeyMonitor.swift.
+//
 //  `cancel()` (ESC or overlay × click) from `starting`, `recording`, or
 //  `transcribing` transitions back to `idle`, discarding the buffer and
 //  any in-flight transcribe task. From `.starting`, the engine
@@ -117,7 +122,7 @@ final class DictationCoordinator {
     private let modelManager: ModelManager
     private let preferences: Preferences
     private let inputDeviceStore: InputDeviceStore
-    private let escapeMonitor = EscapeKeyMonitor()
+    private let keyMonitor = DictationKeyMonitor()
 
     // MARK: - Shared dependencies exposed for SwiftUI environments
 
@@ -164,6 +169,18 @@ final class DictationCoordinator {
     /// entirely) would leave the user stuck in `.recording` until they
     /// pressed again.
     private var stopRequestedDuringStart = false
+
+    /// The `dictationGeneration` whose stop+transcribe tail has already
+    /// been started, if any. Set synchronously by the stop trigger,
+    /// before the tail's first await, so a second trigger for the same
+    /// dictation — Return then the hold-mode release, a double Return,
+    /// Return then the toggle key — is dropped instead of racing the
+    /// first tail: the loser's `recorder.stop()` would throw
+    /// `.notRecording` while the state is still `.recording`, move to
+    /// `.idle`, and make the winner discard the buffer silently.
+    /// Keyed by generation so a cancel or a new press (both bump it)
+    /// clear it implicitly. See `stopTailAlreadyClaimed`.
+    private var stopTailGeneration: Int?
 
     /// Monotonic id for dictation attempts. Bumped by every new press
     /// and by `cancel()`. The engine-boot Task captures the value when
@@ -302,7 +319,8 @@ final class DictationCoordinator {
     }
 
     /// Wires the post-download prewarm hook, the audio level callback,
-    /// the cancel hooks (overlay hover click + ESC monitor), and the
+    /// the cancel hooks (overlay hover click + ESC monitor), the
+    /// Return-to-finish hook, and the
     /// global hotkey, then starts listening for press/release. Call
     /// once at app launch from `AppDelegate.applicationDidFinishLaunching`.
     func start() {
@@ -317,8 +335,12 @@ final class DictationCoordinator {
             self?.cancel()
         }
 
-        escapeMonitor.onEscape = { [weak self] in
+        keyMonitor.onEscape = { [weak self] in
             self?.cancel()
+        }
+
+        keyMonitor.onReturn = { [weak self] in
+            self?.handleReturn()
         }
 
         hotkey.onPress = { [weak self] in
@@ -382,7 +404,7 @@ final class DictationCoordinator {
             stopRequestedDuringStart = true
 
         case .stopAndTranscribe:
-            Task { await stopRecordingAndTranscribe() }
+            beginStopTail()
 
         case .ignore:
             break
@@ -392,7 +414,23 @@ final class DictationCoordinator {
     private func handleRelease() {
         switch Self.releaseAction(from: state, mode: preferences.activationMode) {
         case .stopAndTranscribe:
-            Task { await stopRecordingAndTranscribe() }
+            beginStopTail()
+
+        case .requestStopAfterBoot:
+            stopRequestedDuringStart = true
+
+        case .ignore:
+            break
+        }
+    }
+
+    /// Return / keypad Enter while dictating: finish the dictation,
+    /// exactly like the activation key would (the key monitor has
+    /// already consumed the keystroke). Works in both modes.
+    private func handleReturn() {
+        switch Self.returnAction(from: state) {
+        case .stopAndTranscribe:
+            beginStopTail()
 
         case .requestStopAfterBoot:
             stopRequestedDuringStart = true
@@ -463,8 +501,74 @@ final class DictationCoordinator {
         }
     }
 
-    /// Shared stop-and-transcribe tail used by both the hold-mode
-    /// release and the toggle-mode second press. Keeping this in one
+    /// What a Return / keypad Enter press should do. Pure; same
+    /// pattern as `pressAction` / `releaseAction`. Mode-independent:
+    /// Return is a second "finish" key next to the activation key, so
+    /// it stops a hold-mode dictation early too.
+    enum ReturnAction: Equatable {
+        case stopAndTranscribe
+        case requestStopAfterBoot
+        case ignore
+    }
+
+    static func returnAction(from state: State) -> ReturnAction {
+        switch state {
+        case .recording:
+            return .stopAndTranscribe
+        case .starting:
+            // Same deferred stop as a hold-release / toggle re-press
+            // mid-boot; the boot Task runs the stop tail.
+            return .requestStopAfterBoot
+        case .idle, .transcribing, .error:
+            return .ignore
+        }
+    }
+
+    /// Whether the key monitor should arm (consume) Return in `state`.
+    /// Must agree with `returnAction`: Return is swallowed exactly when
+    /// it will finish the dictation, and passes through to the focused
+    /// app otherwise — notably while `.transcribing`.
+    static func returnIsArmed(in state: State) -> Bool {
+        returnAction(from: state) != .ignore
+    }
+
+    /// Modifiers that may be held while pressing Return without it
+    /// being treated as some other shortcut (⌘↩, ⇧↩, …). In hold mode
+    /// the activation key is necessarily down, so its family is allowed;
+    /// in toggle mode only a plain Return counts.
+    static func allowedReturnModifiers(mode: ActivationMode, key: ActivationKey) -> CGEventFlags {
+        mode == .hold ? key.modifierFlag : []
+    }
+
+    /// Whether the stop tail for the current dictation was already
+    /// started by an earlier trigger. Pure — see `stopTailGeneration`
+    /// and DictationCoordinatorDecisionTests.
+    static func stopTailAlreadyClaimed(claimedGeneration: Int?, currentGeneration: Int) -> Bool {
+        claimedGeneration == currentGeneration
+    }
+
+    /// Claims the stop tail for the current dictation. Returns false if
+    /// another trigger already owns it. Synchronous — must run before
+    /// any await so competing triggers see the claim.
+    private func claimStopTail() -> Bool {
+        guard !Self.stopTailAlreadyClaimed(
+            claimedGeneration: stopTailGeneration, currentGeneration: dictationGeneration
+        ) else { return false }
+        stopTailGeneration = dictationGeneration
+        return true
+    }
+
+    /// Entry point for every live stop trigger (release, toggle press,
+    /// Return): claim first, then run the tail. A duplicate trigger is
+    /// a no-op (a duplicate Return is still consumed by the key
+    /// monitor, so it can't send the chat ahead of the paste).
+    private func beginStopTail() {
+        guard claimStopTail() else { return }
+        Task { await stopRecordingAndTranscribe() }
+    }
+
+    /// Shared stop-and-transcribe tail used by the hold-mode release,
+    /// the toggle-mode second press, and Return. Keeping this in one
     /// place means the too-short guard and the error mapping stay in
     /// sync across both input modes.
     private func stopRecordingAndTranscribe() async {
@@ -491,8 +595,9 @@ final class DictationCoordinator {
             guard Self.stopTailMayProceed(from: state) else { return }
 
             // Too-short recordings (< 0.3 s) contain no usable speech
-            // and make Parakeet throw an inference error. Treat them
-            // the same as empty audio — silent return to idle.
+            // and are below Parakeet's 0.3 s minimum. Treat them the
+            // same as empty audio — silent return to idle. (Inference
+            // errors are no longer silent, so this guard matters.)
             let durationSeconds = Double(buffer.frameLength) / Recorder.targetSampleRate
             if durationSeconds < 0.3 {
                 transition(to: .idle)
@@ -502,8 +607,10 @@ final class DictationCoordinator {
             transition(to: .transcribing)
             startTranscribePipeline(buffer: buffer)
         } catch {
-            // .notRecording means a racing cancel/stop already released
-            // the recorder — that's a clean outcome, not an error.
+            // .notRecording means a racing cancel already released the
+            // recorder — that's a clean outcome, not an error. (A
+            // competing stop can no longer get here: stop triggers are
+            // deduplicated by `claimStopTail`.)
             if let failure = error as? Recorder.Failure, case .notRecording = failure {
                 if Self.stopTailMayProceed(from: state) { transition(to: .idle) }
                 return
@@ -665,6 +772,7 @@ final class DictationCoordinator {
                 // arrived mid-boot. Run the normal stop+transcribe
                 // tail; the duration guard will catch a too-short
                 // buffer and bounce back to .idle silently.
+                guard self.claimStopTail() else { return }
                 await self.stopRecordingAndTranscribe()
 
             case .releaseEngine:
@@ -909,11 +1017,20 @@ final class DictationCoordinator {
         // `stopRecordingAndTranscribe`.)
         if newState != .recording { stopLivePreview() }
 
+        // Return finishes the dictation (and is consumed) only while
+        // .starting / .recording; everywhere else it reaches the app.
+        if Self.returnIsArmed(in: newState) {
+            keyMonitor.armReturn(allowedModifiers: Self.allowedReturnModifiers(
+                mode: preferences.activationMode, key: preferences.activationKey))
+        } else {
+            keyMonitor.disarmReturn()
+        }
+
         switch newState {
         case .idle:
             errorDismissTask?.cancel()
             errorDismissTask = nil
-            escapeMonitor.disable()
+            keyMonitor.disable()
             dismiss()
 
         case .starting:
@@ -923,7 +1040,7 @@ final class DictationCoordinator {
             // here; cancel() routes to the .starting branch.
             errorDismissTask?.cancel()
             errorDismissTask = nil
-            escapeMonitor.enable()
+            keyMonitor.enable()
             // Fresh dictation: clear the previous partial and resolve
             // the model's preview capability just-in-time (same timing
             // as the model/device resolution at press) so the panel
@@ -935,18 +1052,18 @@ final class DictationCoordinator {
         case .recording:
             errorDismissTask?.cancel()
             errorDismissTask = nil
-            escapeMonitor.enable()
+            keyMonitor.enable()
             present(.recording)
             startLivePreviewIfEligible()
 
         case .transcribing:
             errorDismissTask?.cancel()
             errorDismissTask = nil
-            escapeMonitor.enable()
+            keyMonitor.enable()
             present(.transcribing)
 
         case .error(let kind):
-            escapeMonitor.disable()
+            keyMonitor.disable()
             present(overlayPhase(for: kind))
             scheduleErrorDismiss()
         }
@@ -963,8 +1080,8 @@ final class DictationCoordinator {
 
     /// Plays the user's chosen notification sound, if enabled.
     /// Called from the paste-success arm of the transcribe pipeline —
-    /// empty-audio / inference-failed / too-short paths all silently
-    /// return to idle and should NOT trigger a chime.
+    /// empty-audio / too-short paths silently return to idle and
+    /// failures show a pill; neither should trigger a chime.
     private func playSuccessSoundIfEnabled() {
         guard preferences.notificationSoundEnabled else { return }
         NSSound(named: preferences.notificationSoundName)?.play()
@@ -1019,7 +1136,12 @@ final class DictationCoordinator {
         case let failure as TranscriberError:
             switch failure {
             case .modelNotDownloaded: return .error(.noModel)
-            case .emptyAudio, .inferenceFailed: return .idle
+            // Empty / too-short audio is "nothing to transcribe" —
+            // silent. A real inference failure must NOT be silent: it
+            // used to be, and a > 30 s SenseVoice dictation then just
+            // vanished (nothing pasted, no pill, stale "Copy Last").
+            case .emptyAudio: return .idle
+            case .inferenceFailed: return .error(.generic(transcriptionFailedMessage))
             case .loadFailed: return .error(.generic(shortMessage(for: failure)))
             }
         case let failure as APITranscriber.Failure:
@@ -1040,6 +1162,10 @@ final class DictationCoordinator {
             return .error(.generic(shortMessage(for: error)))
         }
     }
+
+    /// Pill text for a genuine inference failure. Fixed rather than
+    /// the underlying CoreML error, which is long and unhelpful.
+    static let transcriptionFailedMessage = "Transcription failed"
 
     // MARK: - Cancel decision
 

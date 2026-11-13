@@ -17,6 +17,7 @@
 //     first; proceeding used to resurrect a cancelled dictation)
 //
 
+import CoreGraphics
 import Testing
 @testable import ora
 
@@ -178,5 +179,73 @@ struct DictationCoordinatorDecisionTests {
         #expect(!DictationCoordinator.stopTailMayProceed(from: .idle))
         #expect(!DictationCoordinator.stopTailMayProceed(from: .transcribing))
         #expect(!DictationCoordinator.stopTailMayProceed(from: .error(.noMic)))
+    }
+
+    // MARK: - stopTailAlreadyClaimed (duplicate stop triggers)
+
+    @Test("first stop trigger of a dictation claims the tail")
+    func firstStopClaims() {
+        #expect(!DictationCoordinator.stopTailAlreadyClaimed(claimedGeneration: nil, currentGeneration: 3))
+        // A claim left over from an earlier dictation (cancel / new
+        // press bumped the generation) doesn't block this one.
+        #expect(!DictationCoordinator.stopTailAlreadyClaimed(claimedGeneration: 2, currentGeneration: 3))
+    }
+
+    @Test("Return then hold release: the release is a duplicate stop (regression: second tail dropped the recording)")
+    func returnThenReleaseIsDuplicate() {
+        // Both triggers see .recording while the first tail awaits the
+        // engine teardown, so both decision tables say stop…
+        #expect(DictationCoordinator.returnAction(from: .recording) == .stopAndTranscribe)
+        #expect(DictationCoordinator.releaseAction(from: .recording, mode: .hold) == .stopAndTranscribe)
+        // …and the claim made by the Return turns the release into a no-op.
+        #expect(DictationCoordinator.stopTailAlreadyClaimed(claimedGeneration: 5, currentGeneration: 5))
+    }
+
+    @Test("double Return / Return then toggle press: second trigger is a duplicate")
+    func doubleStopIsDuplicate() {
+        #expect(DictationCoordinator.returnAction(from: .recording) == .stopAndTranscribe)
+        #expect(DictationCoordinator.pressAction(from: .recording, mode: .toggle) == .stopAndTranscribe)
+        #expect(DictationCoordinator.stopTailAlreadyClaimed(claimedGeneration: 1, currentGeneration: 1))
+    }
+
+    // MARK: - returnAction (Return / keypad Enter finishes a dictation)
+
+    @Test("Return while recording stops and transcribes")
+    func returnWhileRecording() {
+        #expect(DictationCoordinator.returnAction(from: .recording) == .stopAndTranscribe)
+    }
+
+    @Test("Return during .starting requests a deferred stop, like a toggle re-press")
+    func returnDuringStarting() {
+        #expect(DictationCoordinator.returnAction(from: .starting) == .requestStopAfterBoot)
+    }
+
+    @Test("Return is ignored when no recording is active")
+    func returnIgnoredOtherwise() {
+        #expect(DictationCoordinator.returnAction(from: .idle) == .ignore)
+        #expect(DictationCoordinator.returnAction(from: .transcribing) == .ignore)
+        #expect(DictationCoordinator.returnAction(from: .error(.noMic)) == .ignore)
+    }
+
+    @Test("Return is armed (consumed) exactly when it finishes the dictation")
+    func returnArmingMatchesAction() {
+        let states: [DictationCoordinator.State] = [
+            .idle, .starting, .recording, .transcribing, .error(.generic("x")),
+        ]
+        for state in states {
+            #expect(
+                DictationCoordinator.returnIsArmed(in: state)
+                    == (DictationCoordinator.returnAction(from: state) != .ignore)
+            )
+        }
+        #expect(DictationCoordinator.returnIsArmed(in: .recording))
+        #expect(!DictationCoordinator.returnIsArmed(in: .transcribing))
+    }
+
+    @Test("hold mode allows the activation key's modifier with Return; toggle allows none")
+    func allowedReturnModifiers() {
+        #expect(DictationCoordinator.allowedReturnModifiers(mode: .hold, key: .rightCommand) == .maskCommand)
+        #expect(DictationCoordinator.allowedReturnModifiers(mode: .hold, key: .fn) == .maskSecondaryFn)
+        #expect(DictationCoordinator.allowedReturnModifiers(mode: .toggle, key: .rightCommand) == [])
     }
 }

@@ -41,7 +41,7 @@
 //  dies — which over multi-day runs is one of the ways "Ora stops
 //  responding to my shortcut" happens. The C callback below detects
 //  both event types and calls `CGEvent.tapEnable` to bring the tap
-//  back; see the matching code in EscapeKeyMonitor.
+//  back; see the matching code in DictationKeyMonitor.
 //
 
 @preconcurrency import CoreGraphics

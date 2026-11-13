@@ -67,6 +67,43 @@ struct LocalModelSmokeTests {
         }
     }
 
+    /// Regression for the 30 s SenseVoice limit: the preprocessor only
+    /// takes 0.2–30 s, and > 30 s dictations used to throw (and were
+    /// then dropped silently). Needs no audio files — a 45 s synthetic
+    /// buffer must transcribe without throwing — but if `<lang>.wav`
+    /// exists it is tiled past 45 s and must yield text.
+    @Test("SenseVoice transcribes recordings longer than 30 s")
+    func senseVoiceLongAudio() async throws {
+        let downloader = FluidAudioDownloader()
+        try await ensureDownloaded(SenseVoiceTranscriber.modelId, downloader)
+        let transcriber = SenseVoiceTranscriber(downloader: downloader)
+
+        // Faint noise rather than digital silence, so the encoder sees
+        // a realistic floor.
+        var generator = SystemRandomNumberGenerator()
+        let noise = (0..<(45 * 16_000)).map { _ in Float.random(in: -0.002...0.002, using: &generator) }
+        let t = Date()
+        let noiseText = try await transcriber.transcribe(makeBuffer(noise))
+        log("[smoke] SenseVoice long noise 45.0 s in \(String(format: "%.3f", Date().timeIntervalSince(t))) s → \"\(noiseText)\"")
+
+        for lang in ["zh", "en"] {
+            let url = audioDirectory.appendingPathComponent("\(lang).wav")
+            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            let clip = try loadSamples(url)
+            guard !clip.isEmpty else { continue }
+            var long: [Float] = []
+            while long.count < 45 * 16_000 { long += clip }
+            let start = Date()
+            let text = try await transcriber.transcribe(makeBuffer(long))
+            #expect(!text.isEmpty)
+            log("""
+                [smoke] SenseVoice long [\(lang)] audio=\(String(format: "%.1f", Double(long.count) / 16_000)) s \
+                final=\(String(format: "%.3f", Date().timeIntervalSince(start))) s
+                [smoke]   final: \(text)
+                """)
+        }
+    }
+
     @Test("Nemotron 3.5 Streaming transcribes CJK speech, auto and pinned")
     func nemotronStreaming() async throws {
         let downloader = FluidAudioDownloader()

@@ -97,6 +97,13 @@ final class FluidAudioTranscriber: Transcriber {
             return result.text
         } catch is CancellationError {
             throw CancellationError()
+        } catch ASRError.invalidAudioData {
+            // AsrManager rejects audio under its 0.3 s minimum. That's
+            // "nothing usable was said", not a failure — keep it silent
+            // (the coordinator maps .inferenceFailed to an error pill).
+            // The coordinator's own < 0.3 s guard normally gets there
+            // first; this keeps the contract if the two ever drift.
+            throw TranscriberError.emptyAudio
         } catch {
             throw TranscriberError.inferenceFailed(error)
         }

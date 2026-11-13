@@ -34,12 +34,13 @@ struct DictationCoordinatorErrorMappingTests {
         #expect(state == .idle)
     }
 
-    @Test("TranscriberError inferenceFailed → idle")
+    @Test("TranscriberError inferenceFailed → error pill (regression: was silent idle)")
     func transcriberInferenceFailed() {
         let state = DictationCoordinator.stateForPipelineError(
             TranscriberError.inferenceFailed(StubError.sample)
         )
-        #expect(state == .idle)
+        #expect(state == .error(.generic("Transcription failed")))
+        #expect(DictationCoordinator.transcriptionFailedMessage.count <= 32)
     }
 
     @Test("TranscriberError loadFailed → error(.generic(...))")
