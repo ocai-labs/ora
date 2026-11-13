@@ -32,6 +32,31 @@ struct LocalModelSmokeTests {
 
     private static let languages = ["zh", "yue", "ko", "ja", "en"]
 
+    @Test("Parakeet Ultra transcribes English and European speech")
+    func parakeetUltra() async throws {
+        let downloader = FluidAudioDownloader()
+        try await ensureDownloaded(FluidAudioTranscriber.modelId, downloader)
+        let transcriber = FluidAudioTranscriber(downloader: downloader)
+        for lang in ["en", "fr", "de"] {
+            try await run(transcriber, label: "Parakeet Ultra", lang: lang)
+        }
+    }
+
+    @Test("Nemotron Unified transcribes European speech with the language pinned")
+    func nemotronUnified() async throws {
+        let downloader = FluidAudioDownloader()
+        try await ensureDownloaded(NemotronUnifiedTranscriber.modelId, downloader)
+        let suite = "ora.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = Preferences(defaults: defaults)
+        let transcriber = NemotronUnifiedTranscriber(downloader: downloader, preferences: preferences)
+        for lang in ["en", "fr", "de"] {
+            preferences.nemotronUnifiedLanguage = lang
+            try await run(transcriber, label: "Nemotron Unified \(lang)", lang: lang)
+        }
+    }
+
     @Test("SenseVoice Small transcribes CJK speech fast enough for live preview")
     func senseVoice() async throws {
         let downloader = FluidAudioDownloader()

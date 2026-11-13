@@ -2,8 +2,10 @@
 //  FluidAudioTranscriber.swift
 //  ora
 //
-//  Concrete `Transcriber` backed by FluidAudio's Parakeet TDT 0.6B v3
-//  pipeline. This and `FluidAudioDownloader` are the only files in the
+//  Concrete `Transcriber` backed by FluidAudio's Parakeet Ultra
+//  (`moondream/parakeet-ultra`, a post-training of Parakeet TDT 0.6B v3:
+//  same architecture, 25 languages and speed, more accurate on English
+//  and every FLEURS language FluidAudio measures) pipeline. This and `FluidAudioDownloader` are the only files in the
 //  project that import FluidAudio — keeping the SDK isolated to the
 //  Models/ and STT/ adapters means the rest of the app talks to plain
 //  Swift types and doesn't need to learn FluidAudio's vocabulary.
@@ -52,7 +54,8 @@ import AVFoundation
 
 @MainActor
 final class FluidAudioTranscriber: Transcriber {
-    private let modelId: String
+    static let modelId = "parakeet-ultra"
+
     private let downloader: FluidAudioDownloader
 
     private let loader = LazyLoader<AsrManager>()
@@ -60,8 +63,7 @@ final class FluidAudioTranscriber: Transcriber {
     // No default value for `downloader`: evaluating a main-actor
     // isolated initializer as a default argument happens in a
     // nonisolated context and trips strict concurrency.
-    init(modelId: String = "parakeet-v3", downloader: FluidAudioDownloader) {
-        self.modelId = modelId
+    init(downloader: FluidAudioDownloader) {
         self.downloader = downloader
     }
 
@@ -104,12 +106,11 @@ final class FluidAudioTranscriber: Transcriber {
 
     private func ensureLoaded() async throws -> AsrManager {
         try await loader.get(
-            isAvailable: { [downloader, modelId] in downloader.isInstalled(modelId) },
+            isAvailable: { [downloader] in downloader.isInstalled(Self.modelId) },
             unavailableError: TranscriberError.modelNotDownloaded(name: "Parakeet"),
-            load: { [modelId] in
+            load: {
                 do {
-                    let version: AsrModelVersion = modelId == "parakeet-v2" ? .v2 : .v3
-                    let models = try await AsrModels.loadFromCache(version: version)
+                    let models = try await AsrModels.loadFromCache(version: .ultra)
                     let manager = AsrManager(config: .default)
                     try await manager.loadModels(models)
                     return manager

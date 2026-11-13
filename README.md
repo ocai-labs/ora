@@ -48,7 +48,7 @@ the models, and your data.
   a Parakeet, Nemotron or SenseVoice model and watch the text form in a bubble above the
   pill as you speak. Nothing is typed until you release the key, so your cursor
   and existing text stay untouched.
-- **Your choice of models** — on-device **Parakeet** and **Nemotron Unified**
+- **Your choice of models** — on-device **Parakeet Ultra** and **Nemotron Unified**
   (NVIDIA), and **Nemotron 3.5 Streaming** and **SenseVoice** for Chinese,
   Japanese and Korean, or bring
   your own API key for **OpenAI** / **Groq**. Switch any time from Settings.

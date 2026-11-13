@@ -62,8 +62,7 @@ struct FluidAudioDownloader {
     /// in `ModelManager`. (Nemotron Unified is not an `AsrModelVersion`;
     /// it has its own path below.)
     private static let versionsById: [String: AsrModelVersion] = [
-        "parakeet-v2": .v2,
-        "parakeet-v3": .v3
+        FluidAudioTranscriber.modelId: .ultra
     ]
 
     /// Expected size of the raw HuggingFace download for each catalog id,
@@ -73,14 +72,15 @@ struct FluidAudioDownloader {
     /// just before the `.compiling` phase:
     ///
     ///   parakeet-tdt-0.6b-v3:    ~493 MB raw download
+    ///   parakeet-ultra-coreml:   ~632 MB (HF tree listing, 2026-11-12:
+    ///                            encoder 595 MB + decoder 24 + joint 13)
     ///
     /// If the SDK pin starts pulling a different model set, refresh this
     /// table by checking the `[poll] dir=` debug logs during a clean
     /// download. Drift up to ~5 % is harmless — the formatter hides
     /// "≈ 0 ETA" as `<3s` and `estimateEta` clamps remaining ≥ 0.
     private static let totalBytesById: [String: Int64] = [
-        "parakeet-v2": 500 * 1024 * 1024,
-        "parakeet-v3": 500 * 1024 * 1024
+        FluidAudioTranscriber.modelId: 632 * 1000 * 1000
     ]
 
     private func version(for id: String) throws -> AsrModelVersion {
