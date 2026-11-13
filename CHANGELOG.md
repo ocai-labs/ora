@@ -9,6 +9,24 @@ Release notes for a given version are extracted from this file by
 `scripts/create-release.sh` and posted to the matching GitHub Release,
 so keep each version section self-contained and user-facing.
 
+## [Unreleased]
+
+### Added
+- **NVIDIA Nemotron 3.5 ASR Streaming 0.6B** local model for Asian and
+  European languages: Chinese (Mandarin, Simplified and Traditional),
+  Japanese, Korean, Vietnamese, Hindi and about 30 more. Live preview,
+  punctuation built in, and a pinnable language in its settings.
+- **SenseVoice Small** local model (Alibaba FunAudioLLM), Chinese-first:
+  Mandarin and Cantonese, plus English, Japanese and Korean, detected
+  automatically. Live preview, punctuation built in, 240 MB.
+
+### Removed
+- The Whisper local models (Tiny, Small, Distil-Large-v3,
+  Large-v3-Turbo) and the WhisperKit dependency. If a Whisper model was
+  selected, Ora switches to Parakeet v3. Files you already downloaded
+  stay on disk; delete `~/Documents/huggingface/models/argmaxinc/whisperkit-coreml` to
+  free the space.
+
 ## [0.6.1] - 2026-11-11
 
 ### Fixed

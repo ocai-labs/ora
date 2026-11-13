@@ -45,14 +45,16 @@ the models, and your data.
   is: editors, browsers, Slack, email, terminals. If you'd rather not auto-paste,
   Ora can just copy to the clipboard instead.
 - **Live preview** *(optional)* — switch the dictation display to **Panel** with
-  a Parakeet or Nemotron model and watch the text form in a bubble above the
+  a Parakeet, Nemotron or SenseVoice model and watch the text form in a bubble above the
   pill as you speak. Nothing is typed until you release the key, so your cursor
   and existing text stay untouched.
 - **Your choice of models** — on-device **Parakeet** and **Nemotron Unified**
-  (NVIDIA), **Whisper** (Tiny → Large-v3-Turbo), and **Qwen3-ASR**, or bring
+  (NVIDIA), **Nemotron 3.5 Streaming** and **SenseVoice** for Chinese,
+  Japanese and Korean, and **Qwen3-ASR**, or bring
   your own API key for **OpenAI** / **Groq**. Switch any time from Settings.
 - **Pin your language** — Nemotron Unified covers 25 European languages and
-  lets you lock the one you speak (say, French), so it doesn't drift into
+  Nemotron 3.5 Streaming about 40 (including Mandarin, Japanese and Korean);
+  both let you lock the one you speak (say, French), so it doesn't drift into
   English words mid-sentence. Punctuation is built in.
 - **Push-to-talk or toggle** — hold the hotkey to dictate, or press once to
   start and again to stop. Cancel any in-flight dictation with **ESC**.
@@ -63,7 +65,7 @@ the models, and your data.
   [Sparkle](https://sparkle-project.org).
 
 <div align="center">
-  <img src="assets/models.png" alt="Ora model picker — Parakeet, Whisper, and Qwen models, downloadable and switchable from Settings" width="540" />
+  <img src="assets/models.png" alt="Ora model picker — Parakeet, Nemotron, SenseVoice and Qwen models, downloadable and switchable from Settings" width="540" />
 </div>
 
 ## Install
@@ -93,7 +95,7 @@ Building from source additionally needs Xcode 26+ — see [Build from source](#b
 Ora is built around a simple rule: **your voice never leaves your Mac.**
 
 - **No network calls for transcription.** On-device Parakeet, Nemotron,
-  Whisper, and Qwen models run entirely locally via [FluidAudio](https://github.com/FluidInference/FluidAudio)
+  SenseVoice, and Qwen models run entirely locally via [FluidAudio](https://github.com/FluidInference/FluidAudio)
   and MLX. Audio is captured, transcribed, and discarded on your machine.
   *(The optional OpenAI / Groq backends are the one exception — they upload
   audio to that provider, and only if you explicitly choose one.)*

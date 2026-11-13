@@ -36,8 +36,8 @@ final class LazyLoader<T> {
     private var task: Task<T, Error>?
 
     /// Upper bound on how long one `get()` waits for the load. The
-    /// default is deliberately generous — WhisperKit's first-load
-    /// CoreML specialization can legitimately run 1–2 minutes on older
+    /// default is deliberately generous — a first-load CoreML
+    /// specialization can legitimately run 1–2 minutes on older
     /// machines; the watchdog exists to recover from genuine wedges,
     /// not to police slow loads. Injectable for tests.
     private let loadTimeout: Duration

@@ -26,13 +26,18 @@ struct ModelEntry: Identifiable, Equatable {
     /// measured 0.13–0.56 s per round on ANE — and Nemotron Unified, the
     /// same 0.6B FastConformer class on the ANE (FluidAudio measures its
     /// 15 s offline encoder pass at ~15–26 ms on M5 Pro; not yet
-    /// measured inside Ora's preview loop). Other local
+    /// measured inside Ora's preview loop). Nemotron 3.5 Streaming is
+    /// the same class again (FluidAudio: ~66× real time at 1120 ms
+    /// chunks); SenseVoice is non-autoregressive — a single encoder
+    /// pass — and also ANE-resident. Neither is yet measured inside
+    /// Ora's loop. Other local
     /// backends flip to true once their per-round latency is validated
     /// (spec Phase 3); cloud models stay false (would re-upload the
     /// whole buffer every second).
     var supportsLivePreview: Bool {
         switch id {
-        case "parakeet-v2", "parakeet-v3", NemotronUnifiedTranscriber.modelId: true
+        case "parakeet-v2", "parakeet-v3", NemotronUnifiedTranscriber.modelId,
+             NemotronStreamingTranscriber.modelId, SenseVoiceTranscriber.modelId: true
         default: false
         }
     }
@@ -41,11 +46,11 @@ struct ModelEntry: Identifiable, Equatable {
     /// `nil` falls back to the card's generic SF Symbol.
     var brandIconAsset: String? {
         switch id {
-        case "parakeet-v2", "parakeet-v3", NemotronUnifiedTranscriber.modelId: "BrandNvidia"
+        case "parakeet-v2", "parakeet-v3", NemotronUnifiedTranscriber.modelId,
+             NemotronStreamingTranscriber.modelId: "BrandNvidia"
         case "openai-api": "BrandOpenAI"
         case "groq-api": "BrandGroq"
         case "qwen3-asr-0.6b", "qwen3-asr-1.7b": "BrandQwen"
-        case _ where WhisperKitModelConfig.models[id] != nil: "BrandOpenAI"
         default: nil
         }
     }

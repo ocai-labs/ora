@@ -9,9 +9,11 @@
 //
 //  ## Why a protocol at all
 //
-//  Four backends implement this protocol: FluidAudioTranscriber
-//  (Parakeet via ANE), WhisperKitTranscriber (Whisper via CoreML),
-//  MLXTranscriber (Qwen3-ASR via GPU), and APITranscriber (cloud).
+//  Backends implementing this protocol: FluidAudioTranscriber
+//  (Parakeet via ANE), NemotronUnifiedTranscriber,
+//  NemotronStreamingTranscriber and SenseVoiceTranscriber (FluidAudio,
+//  ANE), MLXTranscriber (Qwen3-ASR via GPU), and APITranscriber
+//  (cloud).
 //  The coordinator picks the active backend at hotkey time based on
 //  the user's selected model.
 //
@@ -52,12 +54,11 @@ extension Transcriber {
     /// Default prewarm: run one throwaway inference over ~1.2 s of
     /// silence. This matters because the expensive part of "first use"
     /// is the first *inference*, not the model load — measured in
-    /// `spikes/retranscribe-speed-spike`, a WhisperKit pipeline loads in
-    /// ~2.5 s but its first CoreML specialization runs tens of seconds to
-    /// a couple of minutes; MLX/Qwen JITs its Metal kernels (~5 s) on the
-    /// first `generate`; Parakeet specializes its ANE encoder on first
-    /// run. Loading the model alone (the old WhisperKit-only `prewarm`)
-    /// left all of that on the next dictation. Running a silent inference
+    /// `spikes/retranscribe-speed-spike`, a CoreML pipeline loads in a
+    /// couple of seconds but its first specialization can run much
+    /// longer; MLX/Qwen JITs its Metal kernels (~5 s) on the first
+    /// `generate`; Parakeet specializes its ANE encoder on first run.
+    /// Loading the model alone left all of that on the next dictation. Running a silent inference
     /// here pays it inside Settings/idle time instead.
     ///
     /// Best-effort: a not-downloaded model or any failure is swallowed —
