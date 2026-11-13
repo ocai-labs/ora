@@ -13,7 +13,20 @@ import SwiftUI
 struct MenuBarView: View {
     @Environment(\.openWindow) private var openWindow
 
+    /// Read through the shared instance (it's @Observable), so the item
+    /// enables itself after the first dictation of the session.
+    private var coordinator: DictationCoordinator { .shared }
+
     var body: some View {
+        Button {
+            coordinator.copyLastTranscript()
+        } label: {
+            Label("Copy Last Transcription", systemImage: "doc.on.doc")
+        }
+        .disabled(coordinator.lastTranscript == nil)
+
+        Divider()
+
         // Settings pages — sourced from SettingsPage.allCases so the
         // sidebar and menu stay in sync automatically.
         ForEach(SettingsPage.allCases) { page in

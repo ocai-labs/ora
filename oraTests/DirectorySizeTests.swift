@@ -3,7 +3,7 @@
 //  oraTests
 //
 //  Verifies the recursive directory size calculation used by
-//  FluidAudioDownloader and MLXModelDownloader for download progress.
+//  FluidAudioDownloader for download progress.
 //  This function is being extracted to DownloadProgressUtils — these
 //  tests verify the contract is preserved after the move.
 //

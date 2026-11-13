@@ -75,6 +75,9 @@ final class Preferences {
     static let shared = Preferences()
     static let defaultModelId = "parakeet-v3"
 
+    /// Id prefixes of models dropped from the catalog — see init.
+    static let removedModelPrefixes = ["whisper-", "qwen3-asr-"]
+
     private enum Key {
         static let selectedModelId = "ora.selectedModelId"
         static let autoPaste = "ora.autoPaste"
@@ -197,12 +200,13 @@ final class Preferences {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        // Whisper (WhisperKit) models were removed in 0.7.0. A stored
-        // whisper-* selection would otherwise resolve to no transcriber
-        // and every dictation would fail with "no model", so fall back
-        // to the default. Their downloaded files are left on disk.
+        // Whisper (WhisperKit) and Qwen3-ASR (MLX) models were removed
+        // in 0.7.0. A stored selection of one would otherwise resolve to
+        // no transcriber and every dictation would fail with "no model",
+        // so fall back to the default. Their downloaded files are left
+        // on disk.
         let storedModelId = defaults.string(forKey: Key.selectedModelId)
-        if let storedModelId, storedModelId.hasPrefix("whisper-") {
+        if let storedModelId, Self.removedModelPrefixes.contains(where: storedModelId.hasPrefix) {
             self.selectedModelId = Self.defaultModelId
             defaults.set(Self.defaultModelId, forKey: Key.selectedModelId)
         } else {

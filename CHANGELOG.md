@@ -19,6 +19,9 @@ so keep each version section self-contained and user-facing.
 - **SenseVoice Small** local model (Alibaba FunAudioLLM), Chinese-first:
   Mandarin and Cantonese, plus English, Japanese and Korean, detected
   automatically. Live preview, punctuation built in, 240 MB.
+- **Copy Last Transcription** in the menu bar menu copies your most
+  recent dictation to the clipboard — handy if the paste landed in the
+  wrong place. Kept in memory only, never saved to disk.
 
 ### Removed
 - The Whisper local models (Tiny, Small, Distil-Large-v3,
@@ -26,6 +29,10 @@ so keep each version section self-contained and user-facing.
   selected, Ora switches to Parakeet v3. Files you already downloaded
   stay on disk; delete `~/Documents/huggingface/models/argmaxinc/whisperkit-coreml` to
   free the space.
+- The Qwen3-ASR local models (0.6B, 1.7B) and the MLX dependency. If one
+  was selected, Ora switches to Parakeet v3. Downloaded files stay in
+  `~/.cache/huggingface/hub/mlx-audio`; delete the
+  `mlx-community_Qwen3-ASR-*` folders there to free the space.
 
 ## [0.6.1] - 2026-11-11
 

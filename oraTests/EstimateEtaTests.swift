@@ -3,7 +3,7 @@
 //  oraTests
 //
 //  Locks down the sliding-window ETA calculation used by
-//  FluidAudioDownloader and MLXModelDownloader. This function is being
+//  FluidAudioDownloader. This function is being
 //  extracted to DownloadProgressUtils — these tests verify the contract
 //  is preserved after the move.
 //

@@ -30,6 +30,14 @@ struct ModelMigrationTests {
         }
     }
 
+    @Test("a stored Qwen3-ASR selection falls back to the default model")
+    func qwenSelectionFallsBack() {
+        withDefaults { defaults in
+            defaults.set("qwen3-asr-1.7b", forKey: "ora.selectedModelId")
+            #expect(Preferences(defaults: defaults).selectedModelId == Preferences.defaultModelId)
+        }
+    }
+
     @Test("other stored selections are kept")
     func otherSelectionKept() {
         withDefaults { defaults in

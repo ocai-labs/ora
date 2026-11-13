@@ -94,6 +94,13 @@ final class DictationCoordinator {
 
     private(set) var state: State = .idle
 
+    /// Text of the most recent successful transcription, for the menu
+    /// bar's "Copy Last Transcription". Set before the paste, so it's
+    /// there even when the paste itself fails (e.g. Accessibility was
+    /// revoked) — the words aren't lost. Memory only: never written to
+    /// disk, in keeping with Ora's no-retention privacy rule.
+    private(set) var lastTranscript: String?
+
     // MARK: - Dependencies (owned)
 
     private let hotkey: HotkeyService
@@ -176,7 +183,6 @@ final class DictationCoordinator {
     /// crosses an isolation boundary (which trips strict-concurrency).
     private convenience init() {
         let fluidDownloader = FluidAudioDownloader()
-        let mlxDownloader = MLXModelDownloader()
         self.init(
             hotkey: HotkeyService(),
             recorder: Recorder(),
@@ -186,8 +192,6 @@ final class DictationCoordinator {
                 NemotronUnifiedTranscriber.modelId: NemotronUnifiedTranscriber(downloader: fluidDownloader, preferences: .shared),
                 NemotronStreamingTranscriber.modelId: NemotronStreamingTranscriber(downloader: fluidDownloader, preferences: .shared),
                 SenseVoiceTranscriber.modelId: SenseVoiceTranscriber(downloader: fluidDownloader),
-                "qwen3-asr-0.6b": MLXTranscriber(modelId: "qwen3-asr-0.6b", downloader: mlxDownloader),
-                "qwen3-asr-1.7b": MLXTranscriber(modelId: "qwen3-asr-1.7b", downloader: mlxDownloader),
             ],
             paster: Paster(),
             overlay: RecordingOverlayController(),
@@ -727,7 +731,6 @@ final class DictationCoordinator {
         let backend: String
         if transcriber is FluidAudioTranscriber || transcriber is NemotronUnifiedTranscriber
             || transcriber is NemotronStreamingTranscriber || transcriber is SenseVoiceTranscriber { backend = "local/ane" }
-        else if transcriber is MLXTranscriber { backend = "local/gpu" }
         else { backend = "api" }
         print("[ora] transcribe route=\(backend) model=\(selectedId)")
         transcribeTask?.cancel()
@@ -748,6 +751,8 @@ final class DictationCoordinator {
                     self.transition(to: .idle)
                     return
                 }
+
+                self.lastTranscript = text
 
                 if self.preferences.autoPaste {
                     try await self.paster.paste(text)
@@ -782,6 +787,17 @@ final class DictationCoordinator {
                 self.transition(to: Self.stateForPipelineError(error))
             }
         }
+    }
+
+    // MARK: - Copy last transcription
+
+    /// Puts `lastTranscript` on the general pasteboard. No-op when
+    /// nothing has been transcribed yet this session.
+    func copyLastTranscript() {
+        guard let lastTranscript else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(lastTranscript, forType: .string)
     }
 
     // MARK: - Transcriber selection
